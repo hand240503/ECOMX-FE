@@ -4,7 +4,6 @@
   background-color: #f5f5fa;
 }
 
-/* Header styles */
 .header-sticky {
   position: sticky;
   top: 0;
@@ -13,7 +12,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Main content layout */
 .main-content {
   max-width: 1270px;
   margin: 0 auto;
@@ -25,13 +23,11 @@
   gap: 16px;
 }
 
-/* Sidebar */
 .sidebar {
   width: 224px;
   flex-shrink: 0;
 }
 
-/* Main area */
 .main-area {
   flex: 1;
   display: flex;
@@ -39,7 +35,6 @@
   gap: 16px;
 }
 
-/* Card styles */
 .card {
   background: white;
   border-radius: 8px;
@@ -47,7 +42,6 @@
   overflow: hidden;
 }
 
-/* Button styles */
 .btn-primary {
   background-color: #0b74e5;
   color: white;
@@ -78,7 +72,6 @@
   background-color: #e63946;
 }
 
-/* Badge styles */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -104,7 +97,6 @@
   color: white;
 }
 
-/* Loading animation */
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -124,7 +116,6 @@
   animation: spin 1s linear infinite;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
   .content-layout {
     flex-direction: column;
@@ -149,7 +140,6 @@
   }
 }
 
-/* Utility classes */
 .text-primary {
   color: #0b74e5;
 }
@@ -178,7 +168,6 @@
   background-color: #f5f5fa;
 }
 
-/* Hover effects */
 .hover-scale:hover {
   transform: scale(1.02);
   transition: transform 0.2s ease-in-out;
