@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../../shared/api/services';
+import { authService } from '../../api/services';
 
 interface AuthGuardProps {
   children: ReactNode;

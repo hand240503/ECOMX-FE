@@ -1,9 +1,9 @@
-import MainHeader from '../../../shared/components/layout/header/MainHeader';
-import MainFooter from '../../../shared/components/layout/footer/MainFooter';
-import Sidebar from '../components/Sidebar';
-import BannerSlider from '../components/BannerSlider';
-import QuickLinks from '../components/QuickLinks';
-import ProductFeed from '../components/ProductFeed';
+import MainHeader from '../layout/header/MainHeader';
+import MainFooter from '../layout/footer/MainFooter';
+import Sidebar from '../components/home/Sidebar';
+import BannerSlider from '../components/home/BannerSlider';
+import QuickLinks from '../components/home/QuickLinks';
+import ProductFeed from '../components/home/ProductFeed';
 
 const HomePage = () => {
   return (

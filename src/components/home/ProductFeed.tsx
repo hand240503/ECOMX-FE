@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import ProductCard from '../../product/components/ProductCard';
-import ProductSkeleton from '../../product/components/ProductSkeleton';
+import ProductCard from '../product/ProductCard';
+import ProductSkeleton from '../product/ProductSkeleton';
 
 interface ProductItem {
   id: number;

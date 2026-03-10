@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { authService } from '../../../shared/api/services';
-import type { ApiResponse } from '../../../shared/api/types/common.types';
-import { detectInputType, validateEmailOrPhone, validatePassword } from '../../../shared/utils/validate';
+import { authService } from '../api/services';
+import type { ApiResponse } from '../api/types/common.types';
+import { detectInputType, validateEmailOrPhone, validatePassword } from '../utils/validate';
 
 export const useLogin = () => {
   const navigate = useNavigate();
@@ -34,16 +34,16 @@ export const useLogin = () => {
   }, [locationState]);
 
   const getPlaceholder = () => {
-    if (!login) return 'Email/So dien thoai/Ten dang nhap';
+    if (!login) return 'Email/Số điện thoại/Tên đăng nhập';
     switch (inputType) {
       case 'email':
-        return 'Dang nhap email...';
+        return 'Nhập email...';
       case 'phone':
-        return 'Dang nhap so dien thoai...';
+        return 'Nhập số điện thoại...';
       case 'username':
-        return 'Dang nhap ten dang nhap...';
+        return 'Nhập tên đăng nhập...';
       default:
-        return 'Email/So dien thoai/Ten dang nhap';
+        return 'Email/Số điện thoại/Tên đăng nhập';
     }
   };
 
@@ -91,13 +91,13 @@ export const useLogin = () => {
         password
       });
 
-      toast.success('Dang nhap thanh cong!');
+      toast.success('Đăng nhập thành công!');
       navigate(from, { replace: true });
     } catch (error) {
       if (error instanceof AxiosError) {
         const apiResponse = error.response?.data as ApiResponse;
         if (apiResponse) {
-          setApiError(apiResponse.message || 'Dang nhap that bai');
+          setApiError(apiResponse.message || 'Đăng nhập thất bại');
           if (apiResponse.errors && apiResponse.errors.length > 0) {
             apiResponse.errors.forEach((err) => {
               if (err.field === 'login' || err.field === 'email') {
@@ -108,12 +108,12 @@ export const useLogin = () => {
             });
           }
         } else {
-          setApiError('Khong the ket noi den server');
+          setApiError('Không thể kết nối đến máy chủ');
         }
       } else if (error instanceof Error) {
         setApiError(error.message);
       } else {
-        setApiError('Da co loi xay ra, vui long thu lai');
+        setApiError('Đã có lỗi xảy ra, vui lòng thử lại');
       }
     } finally {
       setLoading(false);

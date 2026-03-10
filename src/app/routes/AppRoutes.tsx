@@ -1,8 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import AuthGuard from '../guards/AuthGuard';
-import HomePage from '../../features/home/pages/HomePage';
-import LoginPage from '../../features/auth/pages/LoginPage';
-import RegisterPage from '../../features/auth/pages/RegisterPage';
+import HomePage from '../../pages/HomePage';
+import LoginPage from '../../pages/LoginPage';
+import RegisterPage from '../../pages/RegisterPage';
 
 const AppRoutes = () => {
   return (

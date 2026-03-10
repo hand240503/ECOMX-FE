@@ -2,14 +2,14 @@ import { useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { authService } from '../../../shared/api/services';
+import { authService } from '../api/services';
 import {
   detectInputType,
   validateConfirmPassword,
   validateEmailOrPhone,
   validatePassword,
   validateVerificationCode
-} from '../../../shared/utils/validate';
+} from '../utils/validate';
 
 export type RegisterStep = 'email' | 'otp' | 'password';
 
