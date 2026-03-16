@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useRegister } from '../hooks/useRegister';
+import { useI18n } from '../i18n/I18nProvider';
 
 const RegisterPage = () => {
+  const { t } = useI18n();
   const {
     currentStep,
     emailOrPhone,
@@ -34,22 +36,22 @@ const RegisterPage = () => {
   } = useRegister();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-orange-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        <div className="flex justify-center mb-7">
           <Link to="/" className="flex flex-col items-center">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-6 py-3 shadow-lg">
-              <span className="text-white font-black text-3xl leading-none tracking-tight">
-                ECOMX
-              </span>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-7 py-3.5 shadow-lg ring-1 ring-blue-400/20">
+              <span className="text-white font-black text-3xl leading-none tracking-tight caret-transparent select-none">ECOMX</span>
             </div>
-            <span className="mt-2 text-sm font-semibold text-gray-600 tracking-wide">
-              Dang ky
-            </span>
+            <span className="mt-3 text-sm font-semibold text-scale-600 tracking-wide ">{t('register_tagline')}</span>
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white/95 backdrop-blur rounded-3xl border border-rose-100 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.35)] p-7 sm:p-8">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl sm:text-[28px] font-bold text-slate-800 tracking-tight">{t('register_page_title')}</h1>
+            <p className="mt-1.5 text-sm text-slate-500">{t('register_page_subtitle')}</p>
+          </div>
           <div className="flex items-center justify-center mb-6">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'email' ? 'bg-red-500 text-white' : 'bg-red-100 text-red-500'
@@ -71,14 +73,14 @@ const RegisterPage = () => {
           </div>
 
           <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-            {currentStep === 'email' && 'Nhap thong tin lien he'}
-            {currentStep === 'otp' && 'Xac thuc tai khoan'}
-            {currentStep === 'password' && 'Tao mat khau'}
+            {currentStep === 'email' && t('step_email_title')}
+            {currentStep === 'otp' && t('step_otp_title')}
+            {currentStep === 'password' && t('step_password_title')}
           </h2>
           <p className="text-sm text-gray-500 mb-6 text-center">
-            {currentStep === 'email' && 'Nhap email hoac so dien thoai de bat dau'}
-            {currentStep === 'otp' && 'Nhap ma xac thuc da duoc gui'}
-            {currentStep === 'password' && 'Tao mat khau cho tai khoan cua ban'}
+            {currentStep === 'email' && t('step_email_desc')}
+            {currentStep === 'otp' && t('step_otp_desc')}
+            {currentStep === 'password' && t('step_password_desc')}
           </p>
 
           <div className="space-y-4">
@@ -86,7 +88,7 @@ const RegisterPage = () => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email hoac So dien thoai
+                    {t('label_email_or_phone')}
                   </label>
                   <input
                     type="text"
@@ -103,8 +105,8 @@ const RegisterPage = () => {
                   )}
                   {emailOrPhone && !emailOrPhoneError && (
                     <p className="mt-1 text-xs text-green-600">
-                      {inputType === 'email' && 'Email hop le'}
-                      {inputType === 'phone' && 'So dien thoai hop le'}
+                      {inputType === 'email' && t('register_valid_email')}
+                      {inputType === 'phone' && t('register_valid_phone')}
                     </p>
                   )}
                 </div>
@@ -114,7 +116,7 @@ const RegisterPage = () => {
                   disabled={!isEmailOrPhoneValid || isLoading}
                   className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                  {isLoading ? 'Dang gui...' : 'Tiep tuc'}
+                  {isLoading ? t('register_loading_send') : t('btn_continue')}
                 </button>
               </>
             )}
@@ -123,11 +125,11 @@ const RegisterPage = () => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ma xac thuc
+                    {t('label_otp')}
                   </label>
                   <input
                     type="text"
-                    placeholder="Nhap 6 chu so"
+                    placeholder={t('otp_placeholder')}
                     value={verificationCode}
                     onChange={handleOtpChange}
                     maxLength={6}
@@ -140,7 +142,7 @@ const RegisterPage = () => {
                     <p className="mt-1 text-xs text-red-500">{otpError}</p>
                   )}
                   <p className="mt-2 text-xs text-gray-500 text-center">
-                    Ma xac thuc da duoc gui den{' '}
+                    {t('otp_sent_to')}{' '}
                     <span className="font-medium text-gray-700">{emailOrPhone}</span>
                   </p>
                 </div>
@@ -151,7 +153,9 @@ const RegisterPage = () => {
                     disabled={countdown > 0 || isLoading}
                     className="text-sm text-red-500 hover:text-red-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
-                    {countdown > 0 ? `Gui lai sau ${countdown}s` : 'Gui lai ma'}
+                    {countdown > 0
+                      ? t('otp_resend_after').replace('{countdown}', String(countdown))
+                      : t('otp_resend')}
                   </button>
                 </div>
 
@@ -160,14 +164,14 @@ const RegisterPage = () => {
                     onClick={handleBackStep}
                     className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
                   >
-                    Quay lai
+                    {t('btn_back')}
                   </button>
                   <button
                     onClick={handleVerifyOTP}
                     disabled={!isOtpValid || isLoading}
                     className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Dang xac thuc...' : 'Xac thuc'}
+                    {isLoading ? t('register_loading_verify') : t('btn_verify')}
                   </button>
                 </div>
               </>
@@ -177,11 +181,11 @@ const RegisterPage = () => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mat khau
+                    {t('label_password')}
                   </label>
                   <input
                     type="password"
-                    placeholder="Nhap mat khau (toi thieu 6 ky tu)"
+                    placeholder={t('register_password_placeholder')}
                     value={password}
                     onChange={handlePasswordChange}
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm ${passwordError
@@ -196,11 +200,11 @@ const RegisterPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Xac nhan mat khau
+                    {t('label_confirm_password')}
                   </label>
                   <input
                     type="password"
-                    placeholder="Nhap lai mat khau"
+                    placeholder={t('register_confirm_password_placeholder')}
                     value={confirmPassword}
                     onChange={handleConfirmPasswordChange}
                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm ${confirmPasswordError
@@ -212,7 +216,7 @@ const RegisterPage = () => {
                     <p className="mt-1 text-xs text-red-500">{confirmPasswordError}</p>
                   )}
                   {confirmPassword && !confirmPasswordError && (
-                    <p className="mt-1 text-xs text-green-600">Mat khau khop</p>
+                    <p className="mt-1 text-xs text-green-600">{t('register_password_match')}</p>
                   )}
                 </div>
 
@@ -226,15 +230,15 @@ const RegisterPage = () => {
                       className="mt-1 w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
                     />
                     <label htmlFor="terms" className="text-xs text-gray-600">
-                      Toi dong y voi{' '}
+                      {t('register_terms_prefix')}{' '}
                       <a href="#" className="text-red-500 hover:text-red-600 hover:underline">
-                        Dieu khoan dich vu
+                        {t('common_terms_service')}
                       </a>{' '}
-                      va{' '}
+                      {t('register_terms_and')}{' '}
                       <a href="#" className="text-red-500 hover:text-red-600 hover:underline">
-                        Chinh sach bao mat
+                        {t('common_privacy_policy')}
                       </a>{' '}
-                      cua ECOMX
+                      {t('register_terms_suffix')}
                     </label>
                   </div>
                   {termsError && (
@@ -247,14 +251,14 @@ const RegisterPage = () => {
                     onClick={handleBackStep}
                     className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-lg transition-colors"
                   >
-                    Quay lai
+                    {t('btn_back')}
                   </button>
                   <button
                     onClick={handleRegister}
                     disabled={!isPasswordValid || isLoading}
                     className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Dang dang ky...' : 'Hoan tat'}
+                    {isLoading ? t('register_loading_submit') : t('btn_finish')}
                   </button>
                 </div>
               </>
@@ -267,7 +271,7 @@ const RegisterPage = () => {
                     <div className="w-full border-t border-gray-200"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-gray-500">HOAC</span>
+                    <span className="px-4 bg-white text-gray-500">{t('common_or')}</span>
                   </div>
                 </div>
 
@@ -293,9 +297,9 @@ const RegisterPage = () => {
             )}
 
             <div className="text-center mt-6">
-              <span className="text-sm text-gray-600">Ban da co tai khoan? </span>
+              <span className="text-sm text-gray-600">{t('register_have_account')} </span>
               <Link to="/login" className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
-                Dang nhap
+                {t('login_button')}
               </Link>
             </div>
           </div>
@@ -303,15 +307,15 @@ const RegisterPage = () => {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500">
-            Bang viec dang ky, ban da dong y voi ECOMX ve
+            {t('register_agreement_prefix')}
           </p>
           <div className="flex justify-center gap-3 mt-1">
             <a href="#" className="text-xs text-red-500 hover:text-red-600 hover:underline">
-              Dieu khoan dich vu
+              {t('common_terms_service')}
             </a>
             <span className="text-xs text-gray-400">|</span>
             <a href="#" className="text-xs text-red-500 hover:text-red-600 hover:underline">
-              Chinh sach bao mat
+              {t('common_privacy_policy')}
             </a>
           </div>
         </div>

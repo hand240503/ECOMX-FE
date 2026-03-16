@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { authService } from '../api/services';
+import { t } from '../utils/i18n';
 import {
   detectInputType,
   validateConfirmPassword,
@@ -54,7 +55,7 @@ export const useRegister = () => {
     setIsLoading(true);
     try {
       await authService.sendOTP({ login: emailOrPhone.trim() });
-      toast.success('Ma xac thuc da duoc gui!');
+      toast.success(t('register_otp_sent'));
       setCurrentStep('otp');
       setCountdown(60);
       const timer = setInterval(() => {
@@ -67,7 +68,7 @@ export const useRegister = () => {
         });
       }, 1000);
     } catch (error: any) {
-      toast.error(error.message || 'Gui ma xac thuc that bai');
+      toast.error(error.message || t('register_otp_send_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -102,14 +103,14 @@ export const useRegister = () => {
       });
 
       if (!isValid) {
-        toast.error('Ma xac thuc khong dung');
+        toast.error(t('register_otp_invalid'));
         return;
       }
 
-      toast.success('Xac thuc thanh cong!');
+      toast.success(t('register_verify_success'));
       setCurrentStep('password');
     } catch (error: any) {
-      toast.error(error.message || 'Ma xac thuc khong dung');
+      toast.error(error.message || t('register_otp_invalid'));
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +121,7 @@ export const useRegister = () => {
     setIsLoading(true);
     try {
       await authService.sendOTP({ login: emailOrPhone.trim() });
-      toast.success('Ma xac thuc moi da duoc gui!');
+      toast.success(t('register_otp_resent'));
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -132,7 +133,7 @@ export const useRegister = () => {
         });
       }, 1000);
     } catch (error: any) {
-      toast.error(error.message || 'Gui lai ma that bai');
+      toast.error(error.message || t('register_otp_resend_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -178,7 +179,7 @@ export const useRegister = () => {
     setConfirmPasswordError(confirmPassError);
 
     if (!agreedToTerms) {
-      setTermsError('Ban phai dong y voi dieu khoan dich vu');
+      setTermsError(t('register_terms_required'));
       return;
     } else {
       setTermsError('');
@@ -194,20 +195,20 @@ export const useRegister = () => {
         verificationCode
       });
 
-      toast.success('Dang ky thanh cong! Vui long dang nhap de tiep tuc.', {
+      toast.success(t('register_success_with_login_prompt'), {
         duration: 3000
       });
 
       setTimeout(() => {
         navigate('/login', {
           state: {
-            message: 'Dang ky thanh cong! Vui long dang nhap.',
+            message: t('register_success_short'),
             email: emailOrPhone.trim()
           }
         });
       }, 1500);
     } catch (error: any) {
-      toast.error(error.message || 'Dang ky that bai');
+      toast.error(error.message || t('register_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -221,16 +222,16 @@ export const useRegister = () => {
     agreedToTerms;
 
   const getPlaceholder = () => {
-    if (!emailOrPhone) return 'Email hoac so dien thoai';
+    if (!emailOrPhone) return t('register_placeholder_default');
     switch (inputType) {
       case 'email':
-        return 'Email cua ban';
+        return t('register_placeholder_email');
       case 'phone':
-        return 'So dien thoai cua ban';
+        return t('register_placeholder_phone');
       case 'username':
-        return 'Email hoac so dien thoai';
+        return t('register_placeholder_default');
       default:
-        return 'Email hoac so dien thoai';
+        return t('register_placeholder_default');
     }
   };
 

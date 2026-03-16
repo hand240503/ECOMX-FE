@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { authService } from '../api/services';
 import type { ApiResponse } from '../api/types/common.types';
+import { t } from '../utils/i18n';
 import { detectInputType, validateEmailOrPhone, validatePassword } from '../utils/validate';
 
 export const useLogin = () => {
@@ -34,16 +35,16 @@ export const useLogin = () => {
   }, [locationState]);
 
   const getPlaceholder = () => {
-    if (!login) return 'Email/Số điện thoại/Tên đăng nhập';
+    if (!login) return t('login_placeholder_default');
     switch (inputType) {
       case 'email':
-        return 'Nhập email...';
+        return t('login_placeholder_email');
       case 'phone':
-        return 'Nhập số điện thoại...';
+        return t('login_placeholder_phone');
       case 'username':
-        return 'Nhập tên đăng nhập...';
+        return t('login_placeholder_username');
       default:
-        return 'Email/Số điện thoại/Tên đăng nhập';
+        return t('login_placeholder_default');
     }
   };
 
@@ -91,13 +92,13 @@ export const useLogin = () => {
         password
       });
 
-      toast.success('Đăng nhập thành công!');
+      toast.success(t('login_success'));
       navigate(from, { replace: true });
     } catch (error) {
       if (error instanceof AxiosError) {
         const apiResponse = error.response?.data as ApiResponse;
         if (apiResponse) {
-          setApiError(apiResponse.message || 'Đăng nhập thất bại');
+          setApiError(apiResponse.message || t('login_failed'));
           if (apiResponse.errors && apiResponse.errors.length > 0) {
             apiResponse.errors.forEach((err) => {
               if (err.field === 'login' || err.field === 'email') {
@@ -108,12 +109,12 @@ export const useLogin = () => {
             });
           }
         } else {
-          setApiError('Không thể kết nối đến máy chủ');
+          setApiError(t('common_server_unreachable'));
         }
       } else if (error instanceof Error) {
         setApiError(error.message);
       } else {
-        setApiError('Đã có lỗi xảy ra, vui lòng thử lại');
+        setApiError(t('common_unexpected_error'));
       }
     } finally {
       setLoading(false);

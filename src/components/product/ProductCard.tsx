@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nProvider';
 
 export interface ProductCardProps {
   name: string;
@@ -25,6 +26,7 @@ const ProductCard = ({
   location = 'Ha Noi',
   isFreeship = true
 }: ProductCardProps) => {
+  const { t } = useI18n();
   const roundedRating = Math.round(rating);
 
   return (
@@ -51,7 +53,7 @@ const ProductCard = ({
             />
           ))}
         </div>
-        <span className="text-[11px] text-gray-500">| Da ban {soldCount}</span>
+        <span className="text-[11px] text-gray-500">| {t('product_sold').replace('{count}', String(soldCount))}</span>
       </div>
 
       <div className="text-red-500 font-semibold">{formatPrice(price)}</div>
@@ -61,7 +63,7 @@ const ProductCard = ({
 
       <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
         <span>{location}</span>
-        {isFreeship && <span className="text-blue-600 font-medium">Freeship</span>}
+        {isFreeship && <span className="text-blue-600 font-medium">{t('product_freeship')}</span>}
       </div>
     </article>
   );

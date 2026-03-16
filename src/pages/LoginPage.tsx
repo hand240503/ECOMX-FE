@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useLogin } from '../hooks/useLogin';
+import { useI18n } from '../i18n/I18nProvider';
 
 const LoginPage = () => {
+  const { t } = useI18n();
   const {
     login,
     password,
@@ -31,7 +33,7 @@ const LoginPage = () => {
               </span>
             </div>
             <span className="mt-3 text-sm font-semibold text-slate-600 tracking-wide caret-transparent select-none">
-              Nền tảng mua sắm thông minh
+              {t('register_tagline')}
             </span>
           </Link>
         </div>
@@ -39,10 +41,10 @@ const LoginPage = () => {
         <div className="bg-white/95 backdrop-blur rounded-3xl border border-rose-100 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.35)] p-7 sm:p-8">
           <div className="text-center mb-6">
             <h1 className="text-2xl sm:text-[28px] font-bold text-slate-800 tracking-tight">
-              Đăng nhập tài khoản
+              {t('login_page_title')}
             </h1>
             <p className="mt-1.5 text-sm text-slate-500">
-              Chào mừng bạn quay lại với ECOMX
+              {t('login_page_subtitle')}
             </p>
           </div>
 
@@ -55,7 +57,7 @@ const LoginPage = () => {
                 : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
-              Đăng nhập
+              {t('login_tab_password')}
             </button>
             <button
               type="button"
@@ -65,7 +67,7 @@ const LoginPage = () => {
                 : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
-              Mã QR
+              {t('login_tab_qr')}
             </button>
           </div>
 
@@ -79,7 +81,7 @@ const LoginPage = () => {
 
               <div>
                 <label htmlFor="login-input" className="block mb-2 text-sm font-semibold text-slate-700">
-                  Email / Số điện thoại / Tên đăng nhập
+                  {t('login_label_account')}
                 </label>
                 <div className="relative">
                   <input
@@ -120,22 +122,22 @@ const LoginPage = () => {
                 )}
                 {login && !emailError && (
                   <p className="mt-1.5 text-xs text-slate-500">
-                    {inputType === 'email' && 'Bạn đang đăng nhập bằng email'}
-                    {inputType === 'phone' && 'Bạn đang đăng nhập bằng số điện thoại'}
-                    {inputType === 'username' && 'Bạn đang đăng nhập bằng tên đăng nhập'}
+                    {inputType === 'email' && t('login_hint_email')}
+                    {inputType === 'phone' && t('login_hint_phone')}
+                    {inputType === 'username' && t('login_hint_username')}
                   </p>
                 )}
               </div>
 
               <div>
                 <label htmlFor="password-input" className="block mb-2 text-sm font-semibold text-slate-700">
-                  Mật khẩu
+                  {t('label_password')}
                 </label>
                 <div className="relative">
                   <input
                     id="password-input"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Nhập mật khẩu"
+                    placeholder={t('login_password_placeholder')}
                     value={password}
                     onChange={handlePasswordChange}
                     disabled={loading}
@@ -150,7 +152,7 @@ const LoginPage = () => {
                     onClick={togglePasswordVisibility}
                     disabled={loading}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors disabled:cursor-not-allowed"
-                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    aria-label={showPassword ? t('login_hide_password') : t('login_show_password')}
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,16 +182,16 @@ const LoginPage = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Đang đăng nhập...</span>
+                    <span>{t('login_loading')}</span>
                   </>
                 ) : (
-                  'Đăng nhập'
+                  t('login_button')
                 )}
               </button>
 
               <div className="text-center">
                 <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors">
-                  Quên mật khẩu?
+                  {t('login_forgot_password')}
                 </Link>
               </div>
 
@@ -198,7 +200,7 @@ const LoginPage = () => {
                   <div className="w-full border-t border-slate-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-slate-500">HOẶC</span>
+                  <span className="px-4 bg-white text-slate-500">{t('common_or')}</span>
                 </div>
               </div>
 
@@ -232,9 +234,9 @@ const LoginPage = () => {
               </div>
 
               <div className="text-center mt-6">
-                <span className="text-sm text-slate-600">Bạn mới biết đến ECOMX? </span>
+                <span className="text-sm text-slate-600">{t('login_new_user')} </span>
                 <Link to="/register" className="text-sm text-rose-500 hover:text-rose-600 font-semibold hover:underline transition-colors">
-                  Tạo tài khoản
+                  {t('login_create_account')}
                 </Link>
               </div>
             </form>
@@ -248,7 +250,7 @@ const LoginPage = () => {
                 </svg>
               </div>
               <p className="text-sm text-slate-600 text-center max-w-xs">
-                Mở ứng dụng ECOMX trên điện thoại và quét mã QR để đăng nhập nhanh.
+                {t('login_qr_instruction')}
               </p>
             </div>
           )}

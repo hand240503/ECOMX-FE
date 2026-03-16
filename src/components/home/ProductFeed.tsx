@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ProductCard from '../product/ProductCard';
 import ProductSkeleton from '../product/ProductSkeleton';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface ProductItem {
   id: number;
@@ -15,6 +16,7 @@ interface ProductItem {
 }
 
 const ProductFeed = () => {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const productImage =
     'https://imgs.search.brave.com/QWn9eSw92TtJj83f1XXsMGkdATu7xnxRdAd3VKXopm8/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pLmVi/YXlpbWcuY29tL2lt/YWdlcy9nLzdEa0FB/T1N3dmdkbGZDR0Ev/cy1sOTYwLndlYnA';
@@ -45,7 +47,7 @@ const ProductFeed = () => {
   return (
     <section className="mt-4 bg-white rounded-lg border border-gray-200">
       <div className="p-4 border-b">
-        <h3 className="font-semibold text-lg text-gray-900">Deal Công Nghệ Nổi Bật</h3>
+        <h3 className="font-semibold text-lg text-gray-900">{t('home_deal_title')}</h3>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 p-2">
         {isLoading
@@ -68,7 +70,7 @@ const ProductFeed = () => {
       </div>
       <div className="flex justify-center py-6">
         <button className="bg-white border border-blue-500 text-blue-600 px-12 py-2 rounded-md hover:bg-blue-50 transition-colors">
-          Xem them
+          {t('home_view_more')}
         </button>
       </div>
     </section>

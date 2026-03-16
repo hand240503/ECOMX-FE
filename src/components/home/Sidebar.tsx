@@ -1,22 +1,25 @@
+import { useI18n } from '../../i18n/I18nProvider';
+
 const Sidebar = () => {
+  const { t } = useI18n();
   const categories = [
-    { name: 'Điện thoại - Tablet', icon: '📱' },
-    { name: 'Laptop - Ultrabook', icon: '💻' },
-    { name: 'PC - Linh kiện', icon: '🧩' },
-    { name: 'Màn hình - Máy in', icon: '🖥️' },
-    { name: 'Thiết bị âm thanh', icon: '🎧' },
-    { name: 'Gaming gear', icon: '🎮' },
-    { name: 'Camera - An ninh', icon: '📷' },
-    { name: 'Thiết bị mạng', icon: '📶' },
-    { name: 'Phụ kiện công nghệ', icon: '🔌' },
-    { name: 'Điện gia dụng thông minh', icon: '🏠' },
-    { name: 'Đồng hồ thông minh', icon: '⌚' },
-    { name: 'Apple chính hãng', icon: '🍎' }
+    { name: t('sidebar_cat_1'), icon: '📱' },
+    { name: t('sidebar_cat_2'), icon: '💻' },
+    { name: t('sidebar_cat_3'), icon: '🧩' },
+    { name: t('sidebar_cat_4'), icon: '🖥️' },
+    { name: t('sidebar_cat_5'), icon: '🎧' },
+    { name: t('sidebar_cat_6'), icon: '🎮' },
+    { name: t('sidebar_cat_7'), icon: '📷' },
+    { name: t('sidebar_cat_8'), icon: '📶' },
+    { name: t('sidebar_cat_9'), icon: '🔌' },
+    { name: t('sidebar_cat_10'), icon: '🏠' },
+    { name: t('sidebar_cat_11'), icon: '⌚' },
+    { name: t('sidebar_cat_12'), icon: '🍎' }
   ];
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-3">
-      <h3 className="font-bold text-gray-800 mb-3 px-2">Danh muc</h3>
+      <h3 className="font-bold text-gray-800 mb-3 px-2">{t('sidebar_title')}</h3>
       <ul className="flex flex-col gap-1">
         {categories.map((cat, index) => (
           <li key={index}>

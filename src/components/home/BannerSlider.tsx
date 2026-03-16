@@ -1,27 +1,21 @@
 import { useEffect, useState } from 'react';
+import slider2 from '../../assets/sliders/slider_2.webp';
+import slider4 from '../../assets/sliders/slider_4.webp';
+import slider5 from '../../assets/sliders/slider_5.webp';
 
 const BannerSlider = () => {
   const slides = [
     {
       id: 1,
-      title: 'SIÊU DEAL CÔNG NGHỆ',
-      subtitle: 'Laptop, điện thoại, phụ kiện giảm đến 40%',
-      highlight: 'TRẢ GÓP 0% - FREESHIP TOÀN QUỐC',
-      gradient: 'from-blue-600 to-blue-400'
+      image: slider2
     },
     {
       id: 2,
-      title: 'TUẦN LỆ LAPTOP',
-      subtitle: 'Nâng cấp cấu hình học tập và làm việc giá tốt',
-      highlight: 'ƯU ĐÃI ĐẾN 5 TRIỆU',
-      gradient: 'from-violet-600 to-indigo-500'
+      image: slider4
     },
     {
       id: 3,
-      title: 'KHUYẾN MÃI PHỤ KIỆN',
-      subtitle: 'Tai nghe, ban phím, chuột gaming sale mỗi ngày',
-      highlight: 'MUA 2 GIAM THEM 10%',
-      gradient: 'from-cyan-600 to-sky-500'
+      image: slider5
     }
   ];
 
@@ -39,24 +33,28 @@ const BannerSlider = () => {
 
   return (
     <section className="mb-4">
-      <div className="group w-full relative rounded-lg overflow-hidden h-[220px] md:h-[300px] flex items-center justify-center text-white">
-        <div className={`absolute inset-0 bg-gradient-to-r ${activeSlide.gradient}`}></div>
-        <div className="relative z-10 text-center">
-          <h2 className="text-2xl md:text-4xl font-bold mb-2">{activeSlide.title}</h2>
-          <p className="text-base md:text-xl">{activeSlide.subtitle}</p>
-          <p className="mt-4 text-2xl md:text-3xl font-bold text-yellow-300">{activeSlide.highlight}</p>
-        </div>
+      <div className="group w-full relative rounded-lg overflow-hidden h-[420px] bg-gray-100">
+        {slides.map((slide, index) => (
+          <img
+            key={slide.id}
+            src={slide.image}
+            alt={`banner-${slide.id}`}
+            className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ease-in-out
+              ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
+          />
+        ))}
 
         <button
           onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
+          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
           aria-label="Slide truoc"
         >
           &#8249;
         </button>
         <button
           onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
           aria-label="Slide tiep theo"
         >
           &#8250;

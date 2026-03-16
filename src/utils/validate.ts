@@ -1,80 +1,90 @@
+import { t } from './i18n';
+
+const format = (key: string, params: Record<string, string | number> = {}): string => {
+  let message = t(key);
+  Object.entries(params).forEach(([param, value]) => {
+    message = message.replace(`{${param}}`, String(value));
+  });
+  return message;
+};
+
 export const validateEmail = (email: string): string => {
-  if (!email) return 'Email khong duoc de trong';
+  if (!email) return t('validation_email_required');
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return 'Email khong hop le';
+  if (!emailRegex.test(email)) return t('validation_email_invalid');
 
   return '';
 };
 
 export const validatePassword = (password: string, minLength: number = 6): string => {
-  if (!password) return 'Mat khau khong duoc de trong';
+  if (!password) return t('validation_password_required');
 
   if (password.length < minLength) {
-    return `Mat khau phai co it nhat ${minLength} ky tu`;
+    return format('validation_password_min', { min: minLength });
   }
 
   return '';
 };
 
 export const validateVerificationCode = (code: string, length: number = 6): string => {
-  if (!code) return 'Ma xac thuc khong duoc de trong';
+  if (!code) return t('validation_otp_required');
 
   if (code.length !== length) {
-    return `Ma xac thuc phai co ${length} ky tu`;
+    return format('validation_otp_length', { length });
   }
 
   const codeRegex = /^\d+$/;
   if (!codeRegex.test(code)) {
-    return 'Ma xac thuc chi duoc chua so';
+    return t('validation_otp_numeric');
   }
 
   return '';
 };
 
 export const validatePhone = (phone: string): string => {
-  if (!phone) return 'So dien thoai khong duoc de trong';
+  if (!phone) return t('validation_phone_required');
 
   const phoneRegex = /^0\d{9}$/;
   if (!phoneRegex.test(phone)) {
-    return 'So dien thoai khong hop le (phai co 10 so va bat dau bang 0)';
+    return t('validation_phone_invalid');
   }
 
   return '';
 };
 
 export const validateUsername = (username: string, minLength: number = 3, maxLength: number = 20): string => {
-  if (!username) return 'Ten dang nhap khong duoc de trong';
+  if (!username) return t('validation_username_required');
 
   if (username.length < minLength) {
-    return `Ten dang nhap phai co it nhat ${minLength} ky tu`;
+    return format('validation_username_min', { min: minLength });
   }
 
   if (username.length > maxLength) {
-    return `Ten dang nhap khong duoc qua ${maxLength} ky tu`;
+    return format('validation_username_max', { max: maxLength });
   }
 
   const usernameRegex = /^[a-zA-Z0-9_]+$/;
   if (!usernameRegex.test(username)) {
-    return 'Ten dang nhap chi duoc chua chu cai, so va dau gach duoi';
+    return t('validation_username_format');
   }
 
   return '';
 };
 
 export const validateConfirmPassword = (password: string, confirmPassword: string): string => {
-  if (!confirmPassword) return 'Vui long xac nhan mat khau';
+  if (!confirmPassword) return t('validation_confirm_password_required');
 
   if (password !== confirmPassword) {
-    return 'Mat khau xac nhan khong khop';
+    return t('validation_confirm_password_mismatch');
   }
 
   return '';
 };
 
-export const validateRequired = (value: string, fieldName: string = 'Truong nay'): string => {
+export const validateRequired = (value: string, fieldName: string = t('validation_field_default')): string => {
   if (!value || value.trim() === '') {
-    return `${fieldName} khong duoc de trong`;
+    return format('validation_required', { field: fieldName });
   }
 
   return '';
@@ -84,21 +94,21 @@ export const validateLength = (
   value: string,
   minLength: number,
   maxLength: number,
-  fieldName: string = 'Truong nay'
+  fieldName: string = t('validation_field_default')
 ): string => {
   if (value.length < minLength) {
-    return `${fieldName} phai co it nhat ${minLength} ky tu`;
+    return format('validation_length_min', { field: fieldName, min: minLength });
   }
 
   if (value.length > maxLength) {
-    return `${fieldName} khong duoc qua ${maxLength} ky tu`;
+    return format('validation_length_max', { field: fieldName, max: maxLength });
   }
 
   return '';
 };
 
 export const validateEmailOrPhone = (value: string): string => {
-  if (!value) return 'Vui long nhap email, so dien thoai hoac ten dang nhap';
+  if (!value) return t('validation_login_required');
 
   const trimmedValue = value.trim();
 
@@ -107,12 +117,12 @@ export const validateEmailOrPhone = (value: string): string => {
       return validatePhone(trimmedValue);
     }
     if (trimmedValue.length < 10) {
-      return 'So dien thoai phai co 10 chu so';
+      return t('validation_phone_length_10');
     }
     if (trimmedValue.length > 10) {
-      return 'So dien thoai khong hop le';
+      return t('validation_phone_invalid_short');
     }
-    return 'So dien thoai phai bat dau bang so 0';
+    return t('validation_phone_must_start_zero');
   }
 
   if (trimmedValue.includes('@')) {
@@ -120,16 +130,16 @@ export const validateEmailOrPhone = (value: string): string => {
   }
 
   if (trimmedValue.length < 3) {
-    return 'Ten dang nhap phai co it nhat 3 ky tu';
+    return t('validation_username_min_3');
   }
 
   if (trimmedValue.length > 50) {
-    return 'Ten dang nhap khong duoc qua 50 ky tu';
+    return t('validation_username_max_50');
   }
 
   const usernameRegex = /^[a-zA-Z0-9_.]+$/;
   if (!usernameRegex.test(trimmedValue)) {
-    return 'Ten dang nhap chi duoc chua chu cai, so, dau gach duoi va dau cham';
+    return t('validation_username_format_extended');
   }
 
   return '';
@@ -156,21 +166,21 @@ export const detectInputType = (value: string): 'email' | 'phone' | 'username' |
 };
 
 export const validateFullName = (fullName: string): string => {
-  if (!fullName) return 'Ho va ten khong duoc de trong';
+  if (!fullName) return t('validation_full_name_required');
 
   if (fullName.trim().length < 2) {
-    return 'Ho va ten phai co it nhat 2 ky tu';
+    return t('validation_full_name_min_2');
   }
 
   const nameRegex = /^[a-zA-ZÀ-ỹ\s]+$/;
   if (!nameRegex.test(fullName)) {
-    return 'Ho va ten chi duoc chua chu cai va khoang trang';
+    return t('validation_full_name_format');
   }
 
   return '';
 };
 
-export const validateCheckbox = (isChecked: boolean, message: string = 'Ban phai dong y voi dieu khoan'): string => {
+export const validateCheckbox = (isChecked: boolean, message: string = t('validation_checkbox_required')): string => {
   if (!isChecked) return message;
   return '';
 };

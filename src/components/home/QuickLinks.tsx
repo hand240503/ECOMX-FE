@@ -1,21 +1,24 @@
+import { useI18n } from '../../i18n/I18nProvider';
+
 interface QuickLinkItem {
   id: number;
-  title: string;
+  titleKey: string;
   icon: string;
 }
 
 const QuickLinks = () => {
+  const { t } = useI18n();
   const items: QuickLinkItem[] = [
-    { id: 1, title: 'Deal Điện Thoại', icon: '📱' },
-    { id: 2, title: 'Laptop Văn Phòng', icon: '💻' },
-    { id: 3, title: 'Gaming Gear', icon: '🎮' },
-    { id: 3, title: 'Thiết bị mạng', icon: '📶' },
-    { id: 4, title: 'Apple Zone', icon: '🍎' },
-    { id: 5, title: 'Màn hình 144Hz', icon: '🖥️' },
-    { id: 6, title: 'Tai nghe - Loa', icon: '🎧' },
-    { id: 7, title: 'Camera an ninh', icon: '📷' },
-    { id: 8, title: 'Đồng hồ thông minh', icon: '⌚' },
-    { id: 9, title: 'Phụ kiện giá tốt', icon: '🔌' }
+    { id: 1, titleKey: 'quick_link_1', icon: '📱' },
+    { id: 2, titleKey: 'quick_link_2', icon: '💻' },
+    { id: 3, titleKey: 'quick_link_3', icon: '🎮' },
+    { id: 4, titleKey: 'quick_link_4', icon: '📶' },
+    { id: 5, titleKey: 'quick_link_5', icon: '🍎' },
+    { id: 6, titleKey: 'quick_link_6', icon: '🖥️' },
+    { id: 7, titleKey: 'quick_link_7', icon: '🎧' },
+    { id: 8, titleKey: 'quick_link_8', icon: '📷' },
+    { id: 9, titleKey: 'quick_link_9', icon: '⌚' },
+    { id: 10, titleKey: 'quick_link_10', icon: '🔌' }
   ];
 
   return (
@@ -29,7 +32,7 @@ const QuickLinks = () => {
               </span>
             </div>
             <span className="text-xs text-center text-gray-700 line-clamp-2 max-w-[90px] font-medium leading-tight">
-              {item.title}
+                {t(item.titleKey)}
             </span>
           </div>
         ))}
