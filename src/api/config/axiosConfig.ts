@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from '../../utils/tokenStorage';
+import { API_ENDPOINTS } from './apiEndpoints';
 
 const BASE_URL = 'http://localhost:8080/api/v1';
 
@@ -26,7 +27,11 @@ const processQueue = (error: unknown, token: string | null = null) => {
 
 const isAuthEndpoint = (url?: string) => {
   if (!url) return false;
-  return url.includes('/auth/login') || url.includes('/auth/refresh-token') || url.includes('/auth/logout');
+  return (
+    url.includes(API_ENDPOINTS.AUTH.LOGIN) ||
+    url.includes(API_ENDPOINTS.AUTH.REFRESH_TOKEN) ||
+    url.includes(API_ENDPOINTS.AUTH.LOGOUT)
+  );
 };
 
 export const axiosInstance: AxiosInstance = axios.create({
@@ -47,10 +52,10 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as RetryableRequestConfig;
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
     const status = error.response?.status;
 
-    if (status !== 401 || !originalRequest || originalRequest._retry || isAuthEndpoint(originalRequest.url)) {
+    if (!originalRequest || status !== 401 || originalRequest._retry || isAuthEndpoint(originalRequest.url)) {
       return Promise.reject(error);
     }
 
@@ -76,7 +81,12 @@ axiosInstance.interceptors.response.use(
       const refreshToken = tokenStorage.getRefreshToken();
       if (!refreshToken) throw new Error('Missing refresh token');
 
-      const refreshRes = await axios.post(`${BASE_URL}/auth/refresh-token`, { refreshToken });
+      // Dung axios thuong de tranh interceptor loop
+      const refreshRes = await axios.post(`${BASE_URL}${API_ENDPOINTS.AUTH.REFRESH_TOKEN}`, {
+        refreshToken,
+        deviceId: tokenStorage.getOrCreateDeviceId()
+      });
+
       const data = refreshRes.data?.data;
       const newAccessToken = data?.access_token;
       const newRefreshToken = data?.refresh_token;
@@ -93,11 +103,11 @@ axiosInstance.interceptors.response.use(
       if (originalRequest.headers) {
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
       }
+
       return axiosInstance(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
       tokenStorage.clear();
-      window.location.href = '/login';
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

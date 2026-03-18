@@ -7,15 +7,18 @@ const BannerSlider = () => {
   const slides = [
     {
       id: 1,
-      image: slider2
+      image: slider2,
+      url: ''
     },
     {
       id: 2,
-      image: slider4
+      image: slider4,
+      url: ''
     },
     {
       id: 3,
-      image: slider5
+      image: slider5,
+      url: ''
     }
   ];
 
@@ -38,6 +41,7 @@ const BannerSlider = () => {
           <img
             key={slide.id}
             src={slide.image}
+            onClick={() => window.open(slide.url, '_blank')}
             alt={`banner-${slide.id}`}
             className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ease-in-out
               ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}

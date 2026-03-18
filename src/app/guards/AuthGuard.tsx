@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../../api/services';
+import { useAuth } from '../auth/AuthProvider';
 import { useI18n } from '../../i18n/I18nProvider';
 
 interface AuthGuardProps {
@@ -11,21 +11,22 @@ interface AuthGuardProps {
 const AuthGuard = ({ children }: AuthGuardProps) => {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { status } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuthenticated = authService.isAuthenticated();
+    if (status === 'unknown') {
+      setIsChecking(true);
+      return;
+    }
 
-      if (isAuthenticated) {
-        navigate('/', { replace: true });
-      } else {
-        setIsChecking(false);
-      }
-    };
+    if (status === 'authenticated') {
+      navigate('/', { replace: true });
+      return;
+    }
 
-    checkAuth();
-  }, [navigate]);
+    setIsChecking(false);
+  }, [navigate, status]);
 
   if (isChecking) {
     return (

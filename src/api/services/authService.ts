@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type {
@@ -14,6 +15,33 @@ import type {
   VerifyOTPRequest
 } from '../types/auth.types';
 import type { ApiResponse } from '../types/common.types';
+import { tokenStorage } from '../../utils/tokenStorage';
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const base64Payload = token.split('.')[1];
+    if (!base64Payload) return null;
+
+    const normalized = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(normalized);
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+const isLikelyJwt = (token: string): boolean => token.split('.').length === 3;
+
+const isJwtExpired = (token: string): boolean => {
+  if (!isLikelyJwt(token)) return false;
+
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== 'number') return true;
+  return Date.now() >= exp * 1000;
+};
+
+type ProfileApiData = AuthResponse['user_info'] | { user_info: AuthResponse['user_info'] };
 
 export const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
@@ -33,9 +61,9 @@ export const authService = {
       throw new Error('Khong nhan duoc token tu server');
     }
 
-    localStorage.setItem('accessToken', access_token);
-    localStorage.setItem('refreshToken', refresh_token);
-    localStorage.setItem('user', JSON.stringify(user_info));
+    tokenStorage.setTokens(access_token, refresh_token);
+    tokenStorage.setUser(user_info);
+    tokenStorage.getOrCreateDeviceId();
 
     return {
       user_info,
@@ -53,16 +81,9 @@ export const authService = {
       throw new Error(response.data.message || 'Dang ky that bai');
     }
 
+    // Backend current register flow only guarantees user_info.
+    // Keep optional fields mapped when backend starts returning tokens.
     const { access_token, refresh_token, user_info } = response.data.data;
-
-    if (!access_token || !refresh_token) {
-      throw new Error('Khong nhan duoc token tu server');
-    }
-
-    localStorage.setItem('accessToken', access_token);
-    localStorage.setItem('refreshToken', refresh_token);
-    localStorage.setItem('user', JSON.stringify(user_info));
-
     return {
       user_info,
       access_token,
@@ -96,11 +117,21 @@ export const authService = {
     try {
       await axiosInstance.post(API_ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
-      console.error('Logout API failed:', error);
+      const is401 = axios.isAxiosError(error) && error.response?.status === 401;
+
+      // Access token het han -> refresh roi goi logout lai de BE revoke refresh token
+      if (is401) {
+        try {
+          await authService.refreshToken();
+          await axiosInstance.post(API_ENDPOINTS.AUTH.LOGOUT);
+        } catch (retryError) {
+          console.error('Logout retry failed:', retryError);
+        }
+      } else {
+        console.error('Logout API failed:', error);
+      }
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      tokenStorage.clear();
     }
   },
 
@@ -125,7 +156,7 @@ export const authService = {
   },
 
   refreshToken: async (): Promise<AuthResponse> => {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = tokenStorage.getRefreshToken();
 
     if (!refreshToken) {
       throw new Error('Khong tim thay refresh token');
@@ -133,7 +164,10 @@ export const authService = {
 
     const response = await axiosInstance.post<RefreshTokenResponse>(
       API_ENDPOINTS.AUTH.REFRESH_TOKEN,
-      { refreshToken } as RefreshTokenRequest
+      {
+        refreshToken,
+        deviceId: tokenStorage.getOrCreateDeviceId()
+      } as RefreshTokenRequest
     );
 
     if (!response.data.success || !response.data.data) {
@@ -146,9 +180,8 @@ export const authService = {
       throw new Error('Khong nhan duoc token moi tu server');
     }
 
-    localStorage.setItem('accessToken', access_token);
-    localStorage.setItem('refreshToken', refresh_token);
-    localStorage.setItem('user', JSON.stringify(user_info));
+    tokenStorage.setTokens(access_token, refresh_token);
+    tokenStorage.setUser(user_info);
 
     return {
       user_info,
@@ -159,20 +192,40 @@ export const authService = {
     };
   },
 
+  fetchCurrentUser: async (): Promise<AuthResponse['user_info']> => {
+    const response = await axiosInstance.get<ApiResponse<ProfileApiData>>(API_ENDPOINTS.USER.PROFILE);
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || 'Khong the tai thong tin nguoi dung');
+    }
+
+    const payload = response.data.data;
+    const user = 'user_info' in payload ? payload.user_info : payload;
+    tokenStorage.setUser(user);
+    return user;
+  },
+
   getCurrentUser: (): AuthResponse['user_info'] | null => {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    return tokenStorage.getUser<AuthResponse['user_info']>();
   },
 
   isAuthenticated: (): boolean => {
-    const accessToken = localStorage.getItem('accessToken');
-    const refreshToken = localStorage.getItem('refreshToken');
-    return !!(accessToken && refreshToken);
+    const accessToken = tokenStorage.getAccessToken();
+    const refreshToken = tokenStorage.getRefreshToken();
+
+    if (!refreshToken) return false;
+    if (isJwtExpired(refreshToken)) return false;
+    if (!accessToken) return true;
+
+    // Access token het han van coi con session, interceptor se tu refresh khi goi API
+    if (isJwtExpired(accessToken)) return true;
+
+    return true;
   },
 
-  getAccessToken: (): string | null => localStorage.getItem('accessToken'),
+  getAccessToken: (): string | null => tokenStorage.getAccessToken(),
 
-  getRefreshToken: (): string | null => localStorage.getItem('refreshToken'),
+  getRefreshToken: (): string | null => tokenStorage.getRefreshToken(),
 
   hasRole: (role: string): boolean => {
     const user = authService.getCurrentUser();
@@ -232,8 +285,6 @@ export const authService = {
   },
 
   clearAuth: (): void => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    tokenStorage.clear();
   }
 };

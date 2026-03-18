@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { authService } from '../../api/services';
+import { useAuth } from '../auth/AuthProvider';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,21 +10,18 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { status } = useAuth();
 
   useEffect(() => {
-    const isAuthenticated = authService.isAuthenticated();
-
-    if (!isAuthenticated) {
+    if (status === 'unauthenticated') {
       navigate('/login', {
         replace: true,
         state: { from: location.pathname }
       });
     }
-  }, [navigate, location]);
+  }, [location.pathname, navigate, status]);
 
-  const isAuthenticated = authService.isAuthenticated();
-
-  if (!isAuthenticated) {
+  if (status !== 'authenticated') {
     return null;
   }
 
