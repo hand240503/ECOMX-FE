@@ -3,6 +3,8 @@ import AuthGuard from '../guards/AuthGuard';
 import HomePage from '../../pages/HomePage';
 import LoginPage from '../../pages/LoginPage';
 import RegisterPage from '../../pages/RegisterPage';
+import ProfilePage from '../../pages/ProfilePage';
+import ProtectedRoute from '../guards/ProtectedRoute';
 
 const AppRoutes = () => {
   return (
@@ -25,6 +27,15 @@ const AppRoutes = () => {
             <AuthGuard>
               <RegisterPage />
             </AuthGuard>
+          }
+        />
+
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
           }
         />
 

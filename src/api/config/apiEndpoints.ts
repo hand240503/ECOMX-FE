@@ -11,7 +11,7 @@ export const API_ENDPOINTS = {
   },
 
   USER: {
-    PROFILE: '/user/profile',
+    PROFILE: '/users/profile',
     UPDATE_PROFILE: '/user/profile',
     CHANGE_PASSWORD: '/user/change-password'
   },

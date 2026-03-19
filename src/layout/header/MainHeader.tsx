@@ -4,6 +4,9 @@ import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
 import flagVi from '../../assets/flags/vn.png';
 import flagEn from '../../assets/flags/gb.png';
+import { useAuth } from '../../app/auth/AuthProvider';
+import { buildUserBadge } from '../../domain/user/buildUserBadge';
+import { authService } from '../../api/services';
 interface MainHeaderProps {
   cartCount?: number;
 }
@@ -23,6 +26,19 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
     { value: 'en', label: t('lang_en'), flag: flagEn }
   ];
   const currentLang = langOptions.find((item) => item.value === lang) ?? langOptions[0];
+  const { user, isAuthenticated } = useAuth();
+  const userBadge = buildUserBadge(
+    {
+      fullName: user?.userInfo?.fullName,
+      firstName: user?.userInfo?.firstName,
+      lastName: user?.userInfo?.lastName,
+      email: user?.email,
+      avatar: user?.userInfo?.avatar
+    },
+    t('header_account')
+  );
+
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -60,6 +76,11 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
       window.removeEventListener('scroll', updateOverlayTop);
     };
   }, [isSearchOpen]);
+
+  const handleLogout = async () => {
+    await authService.logout();
+    navigate('/login');
+  };
 
   return (
     <header ref={headerRef} className="w-full bg-white border-b">
@@ -117,20 +138,24 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                   </svg>
                   <span className="text-sm font-medium hidden xl:block">{t('header_home')}</span>
                 </button>
+                <button className="relative h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 outline-none focus:outline-none focus:ring-0 group">
+                  <div className="relative">
+                    <svg className="w-6 h-6 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                      />
+                    </svg>
 
-                <button
-                  onClick={() => navigate('/login')}
-                  className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium hidden xl:block">{t('header_account')}</span>
+                    {cartCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </div>
                 </button>
+
 
                 <div ref={langWrapperRef} className="relative">
                   <button
@@ -174,23 +199,74 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                   )}
                 </div>
 
-                <button className="relative h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 outline-none focus:outline-none focus:ring-0 group relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300">
-                  <div className="relative">
-                    <svg className="w-6 h-6 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+
+                {isAuthenticated ? (
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setIsUserMenuOpen(true)}
+                    onMouseLeave={() => setIsUserMenuOpen(false)}
+                  >
+                    <button
+                      onClick={() => navigate('/account')}
+                      className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
+                    >
+                      {userBadge.avatarUrl ? (
+                        <img
+                          src={userBadge.avatarUrl}
+                          alt={userBadge.label}
+                          className="w-7 h-7 rounded-full object-cover border border-gray-200"
+                        />
+                      ) : (
+                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center border border-blue-200">
+                          {userBadge.initial}
+                        </span>
+                      )}
+                      <span className="text-sm font-medium hidden xl:block max-w-[140px] truncate">
+                        {userBadge.label}
+                      </span>
+                    </button>
+                    {isUserMenuOpen && (
+                      <div className="absolute right-0 top-full pt-2 z-50">
+                        <div className="w-52 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => navigate('/account')}
+                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
+                          >
+                            Tài khoản của tôi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/orders')}
+                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
+                          >
+                            Đơn hàng
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                          >
+                            Đăng xuất
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                        d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
                       />
                     </svg>
-
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </div>
-                </button>
+                    <span className="text-sm font-medium hidden xl:block">{t('header_account')}</span>
+                  </button>)}
               </div>
             </div>
 
@@ -206,7 +282,7 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
             </div>
           </div>
         </div>
-      </div>
+      </div >
 
       {
         isSearchOpen && (

@@ -7,7 +7,7 @@ import ProductFeed from '../components/home/ProductFeed';
 
 const HomePage = () => {
   return (
-    <div className="bg-gray-100 min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f4f5fb' }}>
       <MainHeader cartCount={5} />
 
       <main className="w-full max-w-[1392px] mx-auto py-4 flex-1">

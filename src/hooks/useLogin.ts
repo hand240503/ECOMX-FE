@@ -2,7 +2,6 @@ import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import { authService } from '../api/services';
 import type { ApiResponse } from '../api/types/common.types';
 import { t } from '../utils/i18n';
@@ -29,7 +28,6 @@ export const useLogin = () => {
 
   useEffect(() => {
     if (locationState?.message) {
-      toast.success(locationState.message);
       window.history.replaceState({}, document.title);
     }
   }, [locationState]);
@@ -92,7 +90,6 @@ export const useLogin = () => {
         password
       });
 
-      toast.success(t('login_success'));
       navigate(from, { replace: true });
     } catch (error) {
       if (error instanceof AxiosError) {
