@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import LoadingLink from '../components/LoadingLink';
 import { useRegister } from '../hooks/useRegister';
 import { useI18n } from '../i18n/I18nProvider';
 
@@ -39,12 +39,12 @@ const RegisterPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-orange-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-7">
-          <Link to="/" className="flex flex-col items-center">
+          <LoadingLink to="/" className="flex flex-col items-center">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-7 py-3.5 shadow-lg ring-1 ring-blue-400/20">
               <span className="text-white font-black text-3xl leading-none tracking-tight caret-transparent select-none">ECOMX</span>
             </div>
             <span className="mt-3 text-sm font-semibold text-scale-600 tracking-wide ">{t('register_tagline')}</span>
-          </Link>
+          </LoadingLink>
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl border border-rose-100 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.35)] p-7 sm:p-8">
@@ -298,9 +298,9 @@ const RegisterPage = () => {
 
             <div className="text-center mt-6">
               <span className="text-sm text-gray-600">{t('register_have_account')} </span>
-              <Link to="/login" className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
+              <LoadingLink to="/login" className="text-sm text-red-500 hover:text-red-600 font-medium hover:underline">
                 {t('login_button')}
-              </Link>
+              </LoadingLink>
             </div>
           </div>
         </div>

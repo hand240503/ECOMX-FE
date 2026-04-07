@@ -12,8 +12,9 @@ export const API_ENDPOINTS = {
 
   USER: {
     PROFILE: '/users/profile',
-    UPDATE_PROFILE: '/user/profile',
-    CHANGE_PASSWORD: '/user/change-password'
+    UPDATE_PROFILE: '/users/profile',
+    CHANGE_PASSWORD: '/users/profile/password',
+    CHANGE_CONTACT: '/users/profile/contact',
   },
 
   PRODUCT: {

@@ -1,7 +1,5 @@
 type UserBadgeInput = {
   fullName?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
   email?: string | null;
   avatar?: string | null;
 };
@@ -12,9 +10,7 @@ type UserBadgeOutput = {
 };
 
 export const buildUserBadge = (u: UserBadgeInput, fallback: string): UserBadgeOutput => {
-  const fullName =
-    u.fullName?.trim() ||
-    [u.lastName, u.firstName].filter(Boolean).join(' ').trim();
+  const fullName = u.fullName?.trim() || '';
   const email = u.email?.trim() ?? '';
   const label = fullName || (email ? email.replace(/^(.{1,8}).*(@.*)$/, '$1...$2') : fallback);
   return {

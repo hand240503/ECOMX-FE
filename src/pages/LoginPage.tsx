@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import LoadingLink from '../components/LoadingLink';
 import { useLogin } from '../hooks/useLogin';
 import { useI18n } from '../i18n/I18nProvider';
 
@@ -26,7 +26,7 @@ const LoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-orange-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="flex justify-center mb-7">
-          <Link to="/" className="flex flex-col items-center">
+          <LoadingLink to="/" className="flex flex-col items-center">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-7 py-3.5 shadow-lg ring-1 ring-blue-400/20">
               <span className="text-white font-black text-3xl leading-none tracking-tight caret-transparent select-none">
                 ECOMX
@@ -35,7 +35,7 @@ const LoginPage = () => {
             <span className="mt-3 text-sm font-semibold text-slate-600 tracking-wide caret-transparent select-none">
               {t('register_tagline')}
             </span>
-          </Link>
+          </LoadingLink>
         </div>
 
         <div className="bg-white/95 backdrop-blur rounded-3xl border border-rose-100 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.35)] p-7 sm:p-8">
@@ -190,9 +190,9 @@ const LoginPage = () => {
               </button>
 
               <div className="text-center">
-                <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+                <LoadingLink to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors">
                   {t('login_forgot_password')}
-                </Link>
+                </LoadingLink>
               </div>
 
               <div className="relative my-6">
@@ -235,9 +235,9 @@ const LoginPage = () => {
 
               <div className="text-center mt-6">
                 <span className="text-sm text-slate-600">{t('login_new_user')} </span>
-                <Link to="/register" className="text-sm text-rose-500 hover:text-rose-600 font-semibold hover:underline transition-colors">
+                <LoadingLink to="/register" className="text-sm text-rose-500 hover:text-rose-600 font-semibold hover:underline transition-colors">
                   {t('login_create_account')}
-                </Link>
+                </LoadingLink>
               </div>
             </form>
           )}

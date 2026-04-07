@@ -21,7 +21,7 @@ export const storage = {
   getFullName: (): string => {
     const user = storage.getUser();
     if (!user?.userInfo) return '';
-    return user.userInfo.fullName || `${user.userInfo.lastName} ${user.userInfo.firstName}`.trim();
+    return user.userInfo.fullName || '';
   },
 
   hasRole: (role: string): boolean => {

@@ -1,6 +1,7 @@
 import { Toaster } from 'react-hot-toast';
 import AppRoutes from './routes/AppRoutes';
 import { AuthProvider } from './auth/AuthProvider';
+import { RouteLoadingProvider } from './loading/RouteLoadingProvider';
 import '../App.css';
 
 const App = () => {
@@ -8,7 +9,9 @@ const App = () => {
     <>
       <Toaster position="top-right" />
       <AuthProvider>
-        <AppRoutes />
+        <RouteLoadingProvider>
+          <AppRoutes />
+        </RouteLoadingProvider>
       </AuthProvider>
     </>
   );

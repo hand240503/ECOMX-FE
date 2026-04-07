@@ -35,9 +35,8 @@ export interface ResetPasswordRequest {
 }
 
 export interface UserInfoDetails {
-  firstName: string | null;
-  lastName: string | null;
   fullName: string | null;
+  telephone: string | null;
   avatar: string | null;
   managerId: number | null;
   info01: string | null;
@@ -75,6 +74,47 @@ export interface AuthResponse {
   refresh_token?: string;
   token_type?: string;
   expires_in?: number;
+}
+
+export type GenderValue = 'male' | 'female' | 'other';
+
+export interface UpdateProfileRequest {
+  // Legacy FE field (BE now resolves current user from token)
+  id?: number;
+
+  // Common profile fields
+  fullName?: string | null;
+  telephone?: string | null;
+  avatar?: string | null;
+  avatarFile?: File | null;
+  managerId?: number | null;
+
+  // Flexible info slots (BE-defined meaning)
+  info01?: string | null;
+  info02?: string | null;
+  info03?: string | null;
+  info04?: string | null;
+
+  // Optional role assignment
+  roleIds?: number[] | null;
+
+  // Present in BE DTO but usually not needed for profile update
+  email?: string | null;
+  phoneNumber?: string | null;
+  status?: number | null;
+  type?: number | null;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface ChangeContactRequest {
+  email?: string;
+  phoneNumber?: string;
+  currentPassword: string;
 }
 
 export interface APIResponse<T> {

@@ -3,6 +3,9 @@ import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type {
   AuthResponse,
+  ChangeContactRequest,
+  ChangePasswordRequest,
+  UpdateProfileRequest,
   ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
@@ -42,6 +45,17 @@ const isJwtExpired = (token: string): boolean => {
 };
 
 type ProfileApiData = AuthResponse['user_info'] | { user_info: AuthResponse['user_info'] };
+
+const compactObject = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
+  const next: Partial<T> = {};
+  (Object.keys(obj) as Array<keyof T>).forEach((key) => {
+    const value = obj[key];
+    if (value === undefined || value === null) return;
+    if (typeof value === 'string' && value.trim() === '') return;
+    next[key] = value;
+  });
+  return next;
+};
 
 export const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
@@ -155,6 +169,42 @@ export const authService = {
     return response.data.message;
   },
 
+  changePassword: async (data: ChangePasswordRequest): Promise<string> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(API_ENDPOINTS.USER.CHANGE_PASSWORD, data);
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Doi mat khau that bai');
+    }
+
+    return response.data.message;
+  },
+
+  changeContact: async (data: ChangeContactRequest): Promise<AuthResponse> => {
+    const response = await axiosInstance.post<LoginResponse>(API_ENDPOINTS.USER.CHANGE_CONTACT, data);
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || 'Cap nhat thong tin lien he that bai');
+    }
+
+    const updated = response.data.data;
+    const { access_token, refresh_token, user_info } = updated;
+
+    if (!access_token || !refresh_token) {
+      throw new Error('Khong nhan duoc token moi sau khi cap nhat thong tin lien he');
+    }
+
+    tokenStorage.setTokens(access_token, refresh_token);
+    tokenStorage.setUser(user_info);
+
+    return {
+      user_info,
+      access_token,
+      refresh_token,
+      token_type: updated.token_type,
+      expires_in: updated.expires_in
+    };
+  },
+
   refreshToken: async (): Promise<AuthResponse> => {
     const refreshToken = tokenStorage.getRefreshToken();
 
@@ -205,6 +255,46 @@ export const authService = {
     return user;
   },
 
+  updateProfile: async (input: UpdateProfileRequest): Promise<AuthResponse['user_info']> => {
+    const profilePayload = compactObject({
+      fullName: input.fullName,
+      telephone: input.telephone ?? input.phoneNumber,
+      avatar: input.avatar,
+      managerId: input.managerId,
+      info01: input.info01,
+      info02: input.info02,
+      info03: input.info03,
+      info04: input.info04,
+    });
+
+    const formData = new FormData();
+
+    if (Object.keys(profilePayload).length > 0) {
+      formData.append(
+        'profile',
+        new Blob([JSON.stringify(profilePayload)], { type: 'application/json' })
+      );
+    }
+
+    if (input.avatarFile) {
+      formData.append('file', input.avatarFile);
+    }
+
+    const response = await axiosInstance.post<ApiResponse<ProfileApiData>>(
+      API_ENDPOINTS.USER.UPDATE_PROFILE,
+      formData
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || 'Khong the cap nhat thong tin nguoi dung');
+    }
+
+    const updatedPayload = response.data.data;
+    const updatedUser = 'user_info' in updatedPayload ? updatedPayload.user_info : updatedPayload;
+    tokenStorage.setUser(updatedUser);
+    return updatedUser;
+  },
+
   getCurrentUser: (): AuthResponse['user_info'] | null => {
     return tokenStorage.getUser<AuthResponse['user_info']>();
   },
@@ -240,14 +330,7 @@ export const authService = {
   getFullName: (): string => {
     const user = authService.getCurrentUser();
     if (!user?.userInfo) return '';
-
-    if (user.userInfo.fullName) {
-      return user.userInfo.fullName;
-    }
-
-    const firstName = user.userInfo.firstName || '';
-    const lastName = user.userInfo.lastName || '';
-    return `${lastName} ${firstName}`.trim();
+    return user.userInfo.fullName || '';
   },
 
   getEmail: (): string => {

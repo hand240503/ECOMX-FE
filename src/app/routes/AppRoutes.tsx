@@ -3,8 +3,12 @@ import AuthGuard from '../guards/AuthGuard';
 import HomePage from '../../pages/HomePage';
 import LoginPage from '../../pages/LoginPage';
 import RegisterPage from '../../pages/RegisterPage';
-import ProfilePage from '../../pages/ProfilePage';
+import ProfilePage from '../../pages/profile/ProfilePage';
 import ProtectedRoute from '../guards/ProtectedRoute';
+import AccountInfoTab from '../../pages/profile/components/AccountInfoTab';
+import EditPasswordTab from '../../pages/profile/components/EditPasswordTab';
+import EditPhoneTab from '../../pages/profile/components/EditPhoneTab';
+import EditEmailTab from '../../pages/profile/components/EditEmailTab';
 
 const AppRoutes = () => {
   return (
@@ -37,7 +41,17 @@ const AppRoutes = () => {
               <ProfilePage />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<AccountInfoTab />} />
+          <Route path="edit/pass" element={<EditPasswordTab />} />
+          <Route path="edit/phone" element={<EditPhoneTab />} />
+          <Route path="edit/email" element={<EditEmailTab />} />
+          <Route path="notifications" element={<p className="text-gray-600">Danh sách thông báo của bạn.</p>} />
+          <Route path="orders" element={<p className="text-gray-600">Lịch sử và quản lý đơn hàng của bạn.</p>} />
+          <Route path="returns" element={<p className="text-gray-600">Yêu cầu đổi trả hàng hóa.</p>} />
+          <Route path="address" element={<p className="text-gray-600">Danh sách các địa chỉ nhận hàng.</p>} />
+          <Route path="payment" element={<p className="text-gray-600">Các phương thức thanh toán đã lưu.</p>} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

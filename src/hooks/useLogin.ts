@@ -1,14 +1,15 @@
 import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { authService } from '../api/services';
 import type { ApiResponse } from '../api/types/common.types';
 import { t } from '../utils/i18n';
 import { detectInputType, validateEmailOrPhone, validatePassword } from '../utils/validate';
+import { useRouteLoadingNavigation } from '../app/loading/useRouteLoadingNavigation';
 
 export const useLogin = () => {
-  const navigate = useNavigate();
+  const { navigateWithLoading } = useRouteLoadingNavigation();
   const location = useLocation();
 
   const locationState = location.state as { message?: string; email?: string; from?: string } | null;
@@ -90,7 +91,7 @@ export const useLogin = () => {
         password
       });
 
-      navigate(from, { replace: true });
+      navigateWithLoading(from, { replace: true, delayMs: 300 });
     } catch (error) {
       if (error instanceof AxiosError) {
         const apiResponse = error.response?.data as ApiResponse;

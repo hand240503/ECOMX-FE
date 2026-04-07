@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import { authService } from '../api/services';
 import { t } from '../utils/i18n';
+import { notify } from '../utils/notify';
 import {
   detectInputType,
   validateConfirmPassword,
@@ -11,11 +10,12 @@ import {
   validatePassword,
   validateVerificationCode
 } from '../utils/validate';
+import { useRouteLoadingNavigation } from '../app/loading/useRouteLoadingNavigation';
 
 export type RegisterStep = 'email' | 'otp' | 'password';
 
 export const useRegister = () => {
-  const navigate = useNavigate();
+  const { navigateWithLoading } = useRouteLoadingNavigation();
   const [currentStep, setCurrentStep] = useState<RegisterStep>('email');
 
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -55,7 +55,7 @@ export const useRegister = () => {
     setIsLoading(true);
     try {
       await authService.sendOTP({ login: emailOrPhone.trim() });
-      toast.success(t('register_otp_sent'));
+      notify.success(t('register_otp_sent'));
       setCurrentStep('otp');
       setCountdown(60);
       const timer = setInterval(() => {
@@ -68,7 +68,7 @@ export const useRegister = () => {
         });
       }, 1000);
     } catch (error: any) {
-      toast.error(error.message || t('register_otp_send_failed'));
+      notify.error(error.message || t('register_otp_send_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -103,14 +103,14 @@ export const useRegister = () => {
       });
 
       if (!isValid) {
-        toast.error(t('register_otp_invalid'));
+        notify.error(t('register_otp_invalid'));
         return;
       }
 
-      toast.success(t('register_verify_success'));
+      notify.success(t('register_verify_success'));
       setCurrentStep('password');
     } catch (error: any) {
-      toast.error(error.message || t('register_otp_invalid'));
+      notify.error(error.message || t('register_otp_invalid'));
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +121,7 @@ export const useRegister = () => {
     setIsLoading(true);
     try {
       await authService.sendOTP({ login: emailOrPhone.trim() });
-      toast.success(t('register_otp_resent'));
+      notify.success(t('register_otp_resent'));
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -133,7 +133,7 @@ export const useRegister = () => {
         });
       }, 1000);
     } catch (error: any) {
-      toast.error(error.message || t('register_otp_resend_failed'));
+      notify.error(error.message || t('register_otp_resend_failed'));
     } finally {
       setIsLoading(false);
     }
@@ -195,12 +195,11 @@ export const useRegister = () => {
         verificationCode
       });
 
-      toast.success(t('register_success_with_login_prompt'), {
-        duration: 3000
-      });
+      notify.success(t('register_success_with_login_prompt'), { duration: 3000 });
 
       setTimeout(() => {
-        navigate('/login', {
+        navigateWithLoading('/login', {
+          delayMs: 300,
           state: {
             message: t('register_success_short'),
             email: emailOrPhone.trim()
@@ -208,7 +207,7 @@ export const useRegister = () => {
         });
       }, 1500);
     } catch (error: any) {
-      toast.error(error.message || t('register_failed'));
+      notify.error(error.message || t('register_failed'));
     } finally {
       setIsLoading(false);
     }

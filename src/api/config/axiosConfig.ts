@@ -36,12 +36,17 @@ const isAuthEndpoint = (url?: string) => {
 
 export const axiosInstance: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' }
+  timeout: 10000
 });
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
+      // Let browser set correct multipart boundary automatically.
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
+
     const token = tokenStorage.getAccessToken();
     if (token && config.headers) config.headers.Authorization = `Bearer ${token}`;
     return config;

@@ -32,8 +32,6 @@ const BannerSlider = () => {
     return () => window.clearInterval(timer);
   }, [slides.length]);
 
-  const activeSlide = slides[currentSlide];
-
   return (
     <section className="mb-4">
       <div className="group w-full relative rounded-lg overflow-hidden h-[420px] bg-gray-100">

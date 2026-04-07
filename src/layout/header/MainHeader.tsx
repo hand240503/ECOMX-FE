@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
 import flagVi from '../../assets/flags/vn.png';
@@ -7,6 +6,7 @@ import flagEn from '../../assets/flags/gb.png';
 import { useAuth } from '../../app/auth/AuthProvider';
 import { buildUserBadge } from '../../domain/user/buildUserBadge';
 import { authService } from '../../api/services';
+import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavigation';
 interface MainHeaderProps {
   cartCount?: number;
 }
@@ -19,7 +19,7 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
   const langWrapperRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [overlayTop, setOverlayTop] = useState(0);
-  const navigate = useNavigate();
+  const { isRouteLoading, navigateWithLoading } = useRouteLoadingNavigation();
   const { lang, setLang, t } = useI18n();
   const langOptions: { value: Lang; label: string; flag: string }[] = [
     { value: 'vi', label: t('lang_vi'), flag: flagVi },
@@ -30,8 +30,6 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
   const userBadge = buildUserBadge(
     {
       fullName: user?.userInfo?.fullName,
-      firstName: user?.userInfo?.firstName,
-      lastName: user?.userInfo?.lastName,
       email: user?.email,
       avatar: user?.userInfo?.avatar
     },
@@ -79,7 +77,7 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
 
   const handleLogout = async () => {
     await authService.logout();
-    navigate('/login');
+    navigateWithLoading('/login');
   };
 
   return (
@@ -207,7 +205,7 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                     onMouseLeave={() => setIsUserMenuOpen(false)}
                   >
                     <button
-                      onClick={() => navigate('/account')}
+                      onClick={() => navigateWithLoading('/account')}
                       className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
                     >
                       {userBadge.avatarUrl ? (
@@ -230,14 +228,14 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                         <div className="w-52 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
                           <button
                             type="button"
-                            onClick={() => navigate('/account')}
+                            onClick={() => navigateWithLoading('/account')}
                             className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
                           >
                             Tài khoản của tôi
                           </button>
                           <button
                             type="button"
-                            onClick={() => navigate('/orders')}
+                            onClick={() => navigateWithLoading('/orders')}
                             className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
                           >
                             Đơn hàng
@@ -255,7 +253,7 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                   </div>
                 ) : (
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigateWithLoading('/login')}
                     className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
@@ -283,6 +281,11 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
           </div>
         </div>
       </div >
+      {isRouteLoading && (
+        <div className="profile-top-loading" aria-hidden="true">
+          <div className="profile-top-loading__bar" />
+        </div>
+      )}
 
       {
         isSearchOpen && (
