@@ -425,16 +425,35 @@
    margin-bottom: 14px;
 }
 
-.account-info-tab__field--row > label {
+.account-info-tab__field--row>label {
    flex: 0 0 118px;
    margin: 0;
    align-self: center;
 }
 
-.account-info-tab__field--row > input {
+.account-info-tab__field--row>input {
    flex: 0 0 260px;
    width: 260px;
    max-width: 260px;
+}
+
+.account-info-tab__field--row>.account-info-tab__field-control {
+   flex: 0 0 260px;
+   width: 260px;
+   max-width: 260px;
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+}
+
+.account-info-tab__field--row>.account-info-tab__field-control>input {
+   width: 100%;
+   max-width: 100%;
+}
+
+.account-info-tab__field--row-with-help>label {
+   align-self: flex-start;
+   padding-top: 10px;
 }
 
 .account-info-tab__field--inline>label,
@@ -533,8 +552,7 @@
 }
 
 .account-info-tab__field-help {
-   margin-left: calc(118px + 16px);
-   margin-top: -6px;
+   margin: 0;
    font-size: 12px;
    line-height: 18px;
    color: rgb(100, 100, 109);

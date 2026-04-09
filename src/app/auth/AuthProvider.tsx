@@ -19,6 +19,18 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+let bootstrapAuthPromise: Promise<AuthResponse['user_info']> | null = null;
+
+const fetchProfileOnce = () => {
+  if (!bootstrapAuthPromise) {
+    bootstrapAuthPromise = authService.fetchCurrentUser().finally(() => {
+      bootstrapAuthPromise = null;
+    });
+  }
+
+  return bootstrapAuthPromise;
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [status, setStatus] = useState<AuthStatus>('unknown');
   const [user, setUser] = useState<AuthResponse['user_info'] | null>(null);
@@ -39,8 +51,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return;
     }
 
+    const cachedUser = authService.getCurrentUser();
+    if (cachedUser) {
+      setAuthenticated(cachedUser);
+      return;
+    }
+
     try {
-      const profile = await authService.fetchCurrentUser();
+      const profile = await fetchProfileOnce();
       setAuthenticated(profile);
     } catch {
       authService.clearAuth();

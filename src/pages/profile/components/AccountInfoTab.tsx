@@ -18,13 +18,15 @@ const AccountInfoTab = () => {
     return user?.userInfo?.fullName?.trim() || '';
   }, [user?.userInfo?.fullName]);
 
-  const derivedDisplayName = useMemo(() => user?.username?.trim() ?? '', [user?.username]);
+  const derivedUserName = useMemo(() => user?.username?.trim() ?? '', [user?.username]);
+  const derivedDisplayName = useMemo(() => user?.userInfo?.info04?.trim() ?? '', [user?.userInfo?.info04]);
 
   const phone = user?.phoneNumber || '';
   const email = user?.email || '';
   const avatarUrl = user?.userInfo?.avatar || '';
 
   const [fullName, setFullName] = useState('');
+  const [userName, setUserName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
@@ -38,8 +40,8 @@ const AccountInfoTab = () => {
 
   useEffect(() => {
     setFullName(derivedFullName);
-    const nick = user?.userInfo?.info04?.trim() ?? '';
-    setDisplayName(nick || derivedDisplayName);
+    setUserName(derivedUserName);
+    setDisplayName(derivedDisplayName);
     const dobRaw = user?.userInfo?.info01?.trim() ?? '';
     if (dobRaw) {
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dobRaw);
@@ -59,11 +61,11 @@ const AccountInfoTab = () => {
   }, [
     derivedDisplayName,
     derivedFullName,
+    derivedUserName,
     avatarUrl,
     user?.userInfo?.info01,
     user?.userInfo?.info02,
-    user?.userInfo?.info03,
-    user?.userInfo?.info04
+    user?.userInfo?.info03
   ]);
 
   useEffect(() => {
@@ -178,15 +180,30 @@ const AccountInfoTab = () => {
                 />
               </div>
 
+              <div className="account-info-tab__field account-info-tab__field--row account-info-tab__field--row-with-help">
+                <label htmlFor="account-user-name">Tên đăng nhập</label>
+                <div className="account-info-tab__field-control">
+                  <input
+                    id="account-user-name"
+                    type="text"
+                    value={userName}
+                    readOnly
+                    placeholder="Nhập tên đăng nhập"
+                  />
+                  <p className="account-info-tab__field-help">Username chỉ có thể thay đổi một lần.</p>
+                </div>
+              </div>
               <div className="account-info-tab__field account-info-tab__field--row">
                 <label htmlFor="account-display-name">Tên hiển thị</label>
-                <input
-                  id="account-display-name"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Nhập tên hiển thị"
-                />
+                <div className="account-info-tab__field-control">
+                  <input
+                    id="account-display-name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Nhập tên đăng nhập"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -383,10 +400,14 @@ const AccountInfoTab = () => {
                 alt="security icon"
                 aria-hidden="true"
               />
-              <p className="account-info-tab__contact-label">Thiết lập mã PIN</p>
+              <p className="account-info-tab__contact-label">Quên mật khẩu</p>
             </div>
-            <button type="button" className="account-info-tab__outline-btn">
-              Thiết lập
+            <button
+              type="button"
+              className="account-info-tab__outline-btn"
+              onClick={() => navigate('/forgot-password')}
+            >
+              Khôi phục
             </button>
           </div>
           <div className="account-info-tab__contact-row">

@@ -45,6 +45,7 @@ const isJwtExpired = (token: string): boolean => {
 };
 
 type ProfileApiData = AuthResponse['user_info'] | { user_info: AuthResponse['user_info'] };
+let inFlightProfileRequest: Promise<AuthResponse['user_info']> | null = null;
 
 const compactObject = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
   const next: Partial<T> = {};
@@ -243,16 +244,28 @@ export const authService = {
   },
 
   fetchCurrentUser: async (): Promise<AuthResponse['user_info']> => {
-    const response = await axiosInstance.get<ApiResponse<ProfileApiData>>(API_ENDPOINTS.USER.PROFILE);
-
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Khong the tai thong tin nguoi dung');
+    if (inFlightProfileRequest) {
+      return inFlightProfileRequest;
     }
 
-    const payload = response.data.data;
-    const user = 'user_info' in payload ? payload.user_info : payload;
-    tokenStorage.setUser(user);
-    return user;
+    inFlightProfileRequest = (async () => {
+      const response = await axiosInstance.get<ApiResponse<ProfileApiData>>(API_ENDPOINTS.USER.PROFILE);
+
+      if (!response.data.success || !response.data.data) {
+        throw new Error(response.data.message || 'Khong the tai thong tin nguoi dung');
+      }
+
+      const payload = response.data.data;
+      const user = 'user_info' in payload ? payload.user_info : payload;
+      tokenStorage.setUser(user);
+      return user;
+    })();
+
+    try {
+      return await inFlightProfileRequest;
+    } finally {
+      inFlightProfileRequest = null;
+    }
   },
 
   updateProfile: async (input: UpdateProfileRequest): Promise<AuthResponse['user_info']> => {

@@ -19,7 +19,8 @@ const navItems = [
 const routeTitleOverrides: Record<string, string> = {
   '/account/edit/pass': 'Thiết lập mật khẩu',
   '/account/edit/phone': 'Số điện thoại',
-  '/account/edit/email': 'Địa chỉ email'
+  '/account/edit/email': 'Địa chỉ email',
+  '/account/forgot-password': 'Khôi phục mật khẩu'
 };
 
 const ProfilePage = () => {

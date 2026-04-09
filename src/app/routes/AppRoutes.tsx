@@ -9,6 +9,9 @@ import AccountInfoTab from '../../pages/profile/components/AccountInfoTab';
 import EditPasswordTab from '../../pages/profile/components/EditPasswordTab';
 import EditPhoneTab from '../../pages/profile/components/EditPhoneTab';
 import EditEmailTab from '../../pages/profile/components/EditEmailTab';
+import ForgotPasswordPage from '../../pages/auth/ForgotPasswordPage';
+import VerifyForgotOtpPage from '../../pages/auth/VerifyForgotOtpPage';
+import ResetPasswordPage from '../../pages/auth/ResetPasswordPage';
 
 const AppRoutes = () => {
   return (
@@ -33,6 +36,10 @@ const AppRoutes = () => {
             </AuthGuard>
           }
         />
+
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/forgot-password/verify" element={<VerifyForgotOtpPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route
           path="/account"
