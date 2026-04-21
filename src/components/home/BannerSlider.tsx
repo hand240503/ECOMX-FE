@@ -34,29 +34,29 @@ const BannerSlider = () => {
 
   return (
     <section className="mb-4">
-      <div className="group w-full relative rounded-lg overflow-hidden h-[420px] bg-gray-100">
+      <div className="group relative h-[200px] w-full overflow-hidden rounded-md bg-background tablet:h-[320px] desktop:h-[360px] wide:h-[420px]">
         {slides.map((slide, index) => (
           <img
             key={slide.id}
             src={slide.image}
-            onClick={() => window.open(slide.url, '_blank')}
+            onClick={() => slide.url && window.open(slide.url, '_blank')}
             alt={`banner-${slide.id}`}
-            className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-700 ease-in-out
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out
               ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
-            loading="lazy"
+            loading={index === 0 ? 'eager' : 'lazy'}
           />
         ))}
 
         <button
           onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
+          className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-surface/80 p-2 text-text-primary opacity-0 transition-opacity duration-200 hover:bg-surface group-hover:pointer-events-auto group-hover:opacity-100"
           aria-label="Slide truoc"
         >
           &#8249;
         </button>
         <button
           onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 p-2 rounded-full text-gray-800 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-white transition-opacity"
+          className="pointer-events-none absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-surface/80 p-2 text-text-primary opacity-0 transition-opacity duration-200 hover:bg-surface group-hover:pointer-events-auto group-hover:opacity-100"
           aria-label="Slide tiep theo"
         >
           &#8250;

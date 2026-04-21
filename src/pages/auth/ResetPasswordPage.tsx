@@ -1,6 +1,8 @@
 import LoadingLink from '../../components/LoadingLink';
 import AuthCard from '../../components/auth/AuthCard';
 import PasswordInput from '../../components/auth/PasswordInput';
+import { Button } from '../../components/ui';
+import { cn } from '../../lib/cn';
 import { useResetPassword } from '../../hooks/auth/useResetPassword';
 
 export default function ResetPasswordPage() {
@@ -19,14 +21,24 @@ export default function ResetPasswordPage() {
       footer={
         <>
           <span>Quay về </span>
-          <LoadingLink to="/login" className="text-rose-500 hover:text-rose-600 font-semibold hover:underline">
+          <LoadingLink
+            to="/login"
+            className={cn(
+              'font-semibold text-primary hover:text-primary-dark hover:underline',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-sm'
+            )}
+          >
             trang đăng nhập
           </LoadingLink>
         </>
       }
     >
       {isTokenMissing ? (
-        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
+        <div
+          className={cn(
+            'mb-4 rounded-md border border-warning/40 bg-warning/10 p-3 text-body text-warning'
+          )}
+        >
           Liên kết đặt lại mật khẩu không hợp lệ hoặc thiếu token. Vui lòng yêu cầu lại từ màn Quên mật khẩu.
         </div>
       ) : null}
@@ -52,13 +64,16 @@ export default function ResetPasswordPage() {
           {...register('confirmPassword')}
         />
 
-        <button
+        <Button
           type="submit"
+          variant="profilePrimary"
+          fullWidth
+          className="rounded-sm"
           disabled={isDisabled}
-          className="w-full bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white font-semibold text-base py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed disabled:hover:shadow-md disabled:active:scale-100"
+          loading={isSubmitting}
         >
-          {isSubmitting ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
-        </button>
+          {isSubmitting ? null : 'Đổi mật khẩu'}
+        </Button>
       </form>
     </AuthCard>
   );

@@ -1,24 +1,24 @@
 const ProductSkeleton = () => {
   return (
-    <article className="bg-white rounded-md p-3 border border-gray-100 animate-pulse">
-      <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-gray-200" />
+    <article className="animate-pulse rounded-md border border-border bg-surface p-3">
+      <div className="relative mb-3 aspect-square overflow-hidden rounded-md bg-border" />
 
-      <div className="space-y-2 min-h-[40px]">
-        <div className="h-3 bg-gray-200 rounded" />
-        <div className="h-3 w-4/5 bg-gray-200 rounded" />
+      <div className="min-h-[40px] space-y-2">
+        <div className="h-3 rounded bg-border" />
+        <div className="h-3 w-4/5 rounded bg-border" />
       </div>
 
-      <div className="flex items-center gap-2 mt-2 mb-2">
-        <div className="h-2.5 w-16 bg-gray-200 rounded" />
-        <div className="h-2.5 w-14 bg-gray-200 rounded" />
+      <div className="mb-2 mt-2 flex items-center gap-2">
+        <div className="h-2.5 w-16 rounded bg-border" />
+        <div className="h-2.5 w-14 rounded bg-border" />
       </div>
 
-      <div className="h-4 w-20 bg-gray-200 rounded" />
-      <div className="h-3 w-16 bg-gray-200 rounded mt-1" />
+      <div className="h-4 w-20 rounded bg-border" />
+      <div className="mt-1 h-3 w-16 rounded bg-border" />
 
       <div className="mt-3 flex items-center justify-between">
-        <div className="h-2.5 w-16 bg-gray-200 rounded" />
-        <div className="h-2.5 w-12 bg-gray-200 rounded" />
+        <div className="h-2.5 w-16 rounded bg-border" />
+        <div className="h-2.5 w-12 rounded bg-border" />
       </div>
     </article>
   );

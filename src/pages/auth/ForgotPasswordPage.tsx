@@ -1,6 +1,8 @@
 import LoadingLink from '../../components/LoadingLink';
 import AuthCard from '../../components/auth/AuthCard';
 import FormInput from '../../components/auth/FormInput';
+import { Button } from '../../components/ui';
+import { cn } from '../../lib/cn';
 import { useForgotPassword } from '../../hooks/auth/useForgotPassword';
 
 export default function ForgotPasswordPage() {
@@ -17,7 +19,13 @@ export default function ForgotPasswordPage() {
       footer={
         <>
           <span>Đã nhớ mật khẩu? </span>
-          <LoadingLink to="/login" className="text-rose-500 hover:text-rose-600 font-semibold hover:underline">
+          <LoadingLink
+            to="/login"
+            className={cn(
+              'font-semibold text-primary hover:text-primary-dark hover:underline',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 rounded-sm'
+            )}
+          >
             Đăng nhập
           </LoadingLink>
         </>
@@ -34,13 +42,16 @@ export default function ForgotPasswordPage() {
           {...register('login')}
         />
 
-        <button
+        <Button
           type="submit"
+          variant="profilePrimary"
+          fullWidth
+          className="rounded-sm"
+          loading={isSubmitting}
           disabled={isSubmitting}
-          className="w-full bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white font-semibold text-base py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed disabled:hover:shadow-md disabled:active:scale-100"
         >
-          {isSubmitting ? 'Đang gửi...' : 'Gửi mã OTP'}
-        </button>
+          {isSubmitting ? null : 'Gửi mã OTP'}
+        </Button>
       </form>
     </AuthCard>
   );

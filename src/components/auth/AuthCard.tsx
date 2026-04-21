@@ -1,35 +1,36 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import LoadingLink from '../LoadingLink';
+import AuthBrandMark from './AuthBrandMark';
+import { cn } from '../../lib/cn';
 
 interface AuthCardProps extends PropsWithChildren {
   title: string;
   description: string;
+  tagline?: ReactNode;
   footer?: ReactNode;
 }
 
-export default function AuthCard({ title, description, children, footer }: AuthCardProps) {
+export default function AuthCard({ title, description, tagline, children, footer }: AuthCardProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-orange-50 flex items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8 tablet:px-6">
       <div className="w-full max-w-lg">
-        <div className="flex justify-center mb-7">
-          <LoadingLink to="/" className="flex flex-col items-center">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl px-7 py-3.5 shadow-lg ring-1 ring-blue-400/20">
-              <span className="text-white font-black text-3xl leading-none tracking-tight caret-transparent select-none">
-                ECOMX
-              </span>
-            </div>
-          </LoadingLink>
-        </div>
+        <AuthBrandMark subtitle={tagline} />
 
-        <div className="bg-white/95 backdrop-blur rounded-3xl border border-rose-100 shadow-[0_20px_60px_-20px_rgba(244,63,94,0.35)] p-7 sm:p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl sm:text-[28px] font-bold text-slate-800 tracking-tight">{title}</h1>
-            <p className="mt-1.5 text-sm text-slate-500">{description}</p>
+        <div
+          className={cn(
+            'rounded-md border border-border bg-surface p-6 shadow-elevation-card',
+            'tablet:p-8'
+          )}
+        >
+          <div className="mb-6 text-center">
+            <h1 className="text-display text-text-primary">{title}</h1>
+            <p className="mt-1.5 text-body text-text-secondary">{description}</p>
           </div>
           {children}
         </div>
 
-        {footer ? <div className="mt-4 text-center text-sm text-slate-600">{footer}</div> : null}
+        {footer ? (
+          <div className="mt-4 text-center text-body text-text-secondary">{footer}</div>
+        ) : null}
       </div>
     </div>
   );

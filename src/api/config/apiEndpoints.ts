@@ -20,6 +20,35 @@ export const API_ENDPOINTS = {
   PRODUCT: {
     LIST: '/products',
     DETAIL: (id: string) => `/products/${id}`,
-    SEARCH: '/products/search'
-  }
+    /** `GET` — `ProductDetailResponse` (product + recommendations). @see docs/product_api.md */
+    DETAIL_WITH_RECOMMENDATIONS: (id: number | string) => `/products/${id}/detail`,
+    /** @see docs/api_search.md §1 */
+    SEARCH: '/products/search',
+    /**
+     * Danh sách SP theo phạm vi danh mục (categoryId + toàn bộ descendant), phân trang `page`/`limit`.
+     * JWT. Chi tiết: docs/product-by-category.md — bước 4 luồng: docs/home-category-product-list-flow.md
+     */
+    BY_CATEGORY: (categoryId: number | string) => `/products/category/${categoryId}`,
+  },
+
+  RECOMMENDATIONS: {
+    /** Trả JSON array thẳng (không bọc APIResponse) — xem docs/api_home.md */
+    HOME: '/recommendations/home',
+  },
+
+  /**
+   * Cần JWT. Hợp đồng: docs/category.md.
+   * Thứ tự gọi trên trang danh mục: docs/home-category-product-list-flow.md (bước 2–3).
+   */
+  CATEGORY: {
+    LIST: '/categories',
+    ROOTS: '/categories/roots',
+    CHILDREN: (parentId: number | string) => `/categories/parent/${parentId}/children`,
+    BY_ID: (id: number | string) => `/categories/${id}`,
+  },
+
+  /** @see docs/api_search.md §2 */
+  SEARCH: {
+    TRENDING: '/search/trending',
+  },
 };

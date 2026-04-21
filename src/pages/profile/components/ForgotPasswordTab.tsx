@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
-
+import { Button } from '../../../components/ui';
+import { authInputClass } from '../../../lib/authFormClasses';
+import { cn } from '../../../lib/cn';
 
 export default function ForgotPasswordTab() {
-
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -23,8 +24,7 @@ export default function ForgotPasswordTab() {
   const canSubmit = useMemo(() => {
     if (isSaving) return false;
     if (!isConfirmStep) return Boolean(email.trim()) && isValidEmail(email);
-    return Boolean(code.trim())
-      && isValidPassword(newPassword);
+    return Boolean(code.trim()) && isValidPassword(newPassword);
   }, [isConfirmStep, isSaving, email, code, newPassword]);
 
   const handleSubmit = async () => {
@@ -69,34 +69,43 @@ export default function ForgotPasswordTab() {
       setIsSaving(false);
     }
   };
+
   return (
-    <div className="mx-auto w-full max-w-xl p-4">
-      <div className="rounded-xl bg-white p-6 border-2">
-        <h2 className="text-xl font-semibold text-gray-900">{isConfirmStep ? 'Xác nhận đặt lại mật khẩu' : 'Quên mật khẩu'}</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          {isConfirmStep ?
-            'Vui lòng nhập mã xác nhận đã được gửi đến email hoặc số điện thoại của bạn.'
-            : 'Vui lòng nhập Email hoặc số điện thoại bạn đã đăng ký để tiền hành đổi mật khẩu.'}
+    <div className="mx-auto w-full max-w-xl">
+      <div
+        className={cn(
+          'rounded-md border border-border bg-surface p-5 shadow-elevation-card',
+          'tablet:p-6'
+        )}
+      >
+        <h2 className="text-heading text-text-primary">
+          {isConfirmStep ? 'Xác nhận đặt lại mật khẩu' : 'Quên mật khẩu'}
+        </h2>
+        <p className="mt-1 text-body text-text-secondary">
+          {isConfirmStep
+            ? 'Vui lòng nhập mã xác nhận đã được gửi đến email hoặc số điện thoại của bạn.'
+            : 'Vui lòng nhập Email hoặc số điện thoại bạn đã đăng ký để tiến hành đổi mật khẩu.'}
         </p>
 
-        <div className="mt-2 space-y-4">
+        <div className="mt-5 space-y-4">
           {!isConfirmStep ? (
             <div>
-              <label htmlFor="forgot-email" className='block text-sm font-medium text-gray-700'>Địa chỉ email</label>
+              <label htmlFor="forgot-email" className="mb-2 block text-caption font-semibold text-text-primary">
+                Địa chỉ email
+              </label>
               <input
                 id="forgot-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Nhập địa chỉ email"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className={authInputClass(false, isSaving)}
               />
             </div>
           ) : (
             <>
-
               <div>
-                <label htmlFor="forgot-code" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="forgot-code" className="mb-2 block text-caption font-semibold text-text-primary">
                   Mã xác nhận
                 </label>
                 <input
@@ -105,12 +114,12 @@ export default function ForgotPasswordTab() {
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="Nhập mã xác nhận"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className={authInputClass(false, isSaving)}
                 />
               </div>
 
               <div>
-                <label htmlFor="forgot-password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="forgot-password" className="mb-2 block text-caption font-semibold text-text-primary">
                   Mật khẩu mới
                 </label>
                 <input
@@ -119,35 +128,37 @@ export default function ForgotPasswordTab() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Nhập mật khẩu mới"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className={authInputClass(false, isSaving)}
                 />
               </div>
-
             </>
           )}
         </div>
-        <div className="mt-6 flex gap-3">
-          {isConfirmStep && (
-            <button
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          {isConfirmStep ? (
+            <Button
               type="button"
+              variant="profileGhost"
+              className="rounded-sm sm:min-w-[120px]"
               onClick={() => {
                 if (isSaving) return;
                 setIsConfirmStep(false);
               }}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Quay lại
-            </button>
-          )}
-          <button
+            </Button>
+          ) : null}
+          <Button
             type="button"
+            variant="profilePrimary"
+            className="rounded-sm sm:min-w-[140px]"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${canSubmit ? 'bg-primary hover:bg-primary-dark' : 'cursor-not-allowed bg-gray-400'
-              }`}
+            loading={isSaving}
           >
-            {isSaving ? 'Đang xử lý...' : isConfirmStep ? 'Xác nhận' : 'Gửi mã'}
-          </button>
+            {isSaving ? null : isConfirmStep ? 'Xác nhận' : 'Gửi mã'}
+          </Button>
         </div>
       </div>
     </div>

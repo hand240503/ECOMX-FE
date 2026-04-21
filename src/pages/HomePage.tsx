@@ -7,19 +7,21 @@ import ProductFeed from '../components/home/ProductFeed';
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#f4f5fb' }}>
+    <div className="flex min-h-screen flex-col bg-background">
       <MainHeader cartCount={5} />
 
-      <main className="w-full max-w-[1392px] mx-auto py-4 flex-1">
-        <div className="flex gap-6">
-          <div className="hidden lg:block w-[230px] flex-shrink-0">
-            <Sidebar />
-          </div>
+      <main className="flex-1 py-4">
+        <div className="mx-auto w-full max-w-container px-4 tablet:px-6">
+          <div className="flex gap-4 desktop:gap-6">
+            <div className="hidden w-[240px] flex-shrink-0 desktop:block">
+              <Sidebar />
+            </div>
 
-          <div className="flex-1 min-w-0">
-            <BannerSlider />
-            <QuickLinks />
-            <ProductFeed />
+            <div className="min-w-0 flex-1">
+              <BannerSlider />
+              <QuickLinks />
+              <ProductFeed />
+            </div>
           </div>
         </div>
       </main>

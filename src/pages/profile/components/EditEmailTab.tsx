@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../app/auth/AuthProvider';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
+import { Button } from '../../../components/ui';
+import { authInputClass } from '../../../lib/authFormClasses';
+import { cn } from '../../../lib/cn';
 
 const isValidEmail = (value: string): boolean => /\S+@\S+\.\S+/.test(value);
 
@@ -69,19 +72,27 @@ export default function EditEmailTab() {
   };
 
   return (
-    <div className="profile-contact-edit">
-      <div className="profile-contact-edit__card">
-        <h2 className="profile-contact-edit__title">
+    <div className="mx-auto w-full max-w-xl">
+      <div
+        className={cn(
+          'rounded-md border border-border bg-surface p-5 shadow-elevation-card',
+          'tablet:p-6'
+        )}
+      >
+        <h2 className="text-heading text-text-primary">
           {isConfirmStep ? 'Xác nhận mật khẩu' : 'Cập nhật địa chỉ email'}
         </h2>
-        <p className="profile-contact-edit__subtitle">
+        <p className="mt-1 text-body text-text-secondary">
           {isConfirmStep
             ? 'Nhập mật khẩu hiện tại để xác nhận thay đổi email.'
             : 'Nhập email bạn muốn sử dụng cho tài khoản.'}
         </p>
 
-        <div className="profile-contact-edit__field">
-          <label htmlFor={isConfirmStep ? 'profile-email-password' : 'profile-email'}>
+        <div className="mt-5">
+          <label
+            htmlFor={isConfirmStep ? 'profile-email-password' : 'profile-email'}
+            className="mb-2 block text-caption font-semibold text-text-primary"
+          >
             {isConfirmStep ? 'Mật khẩu' : 'Địa chỉ email'}
           </label>
           <input
@@ -91,28 +102,26 @@ export default function EditEmailTab() {
             onChange={(event) => (isConfirmStep ? setPassword(event.target.value) : setEmail(event.target.value))}
             placeholder={isConfirmStep ? 'Nhập mật khẩu để xác nhận' : 'Nhập địa chỉ email'}
             autoComplete={isConfirmStep ? 'current-password' : 'email'}
+            className={authInputClass(false, isSaving)}
           />
         </div>
 
-        <div className="profile-contact-edit__actions">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
           {isConfirmStep ? (
-            <button
-              type="button"
-              className="profile-contact-edit__btn profile-contact-edit__btn--ghost"
-              onClick={handleBack}
-              disabled={isSaving}
-            >
+            <Button type="button" variant="profileGhost" onClick={handleBack} disabled={isSaving} className="rounded-sm sm:min-w-[120px]">
               Quay lại
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button
             type="button"
-            className="profile-contact-edit__btn profile-contact-edit__btn--primary"
+            variant="profilePrimary"
             onClick={handleSubmit}
             disabled={!canSubmit}
+            loading={isSaving}
+            className="rounded-sm sm:min-w-[140px]"
           >
-            {isSaving ? 'Đang lưu...' : isConfirmStep ? 'Xác nhận' : 'Lưu thay đổi'}
-          </button>
+            {isSaving ? null : isConfirmStep ? 'Xác nhận' : 'Lưu thay đổi'}
+          </Button>
         </div>
       </div>
     </div>

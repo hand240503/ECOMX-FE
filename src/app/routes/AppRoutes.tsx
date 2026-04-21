@@ -1,6 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { ScrollToTop } from './ScrollToTop';
 import AuthGuard from '../guards/AuthGuard';
 import HomePage from '../../pages/HomePage';
+import SearchPage from '../../pages/search/SearchPage';
+import CategoryProductsPage from '../../pages/category/CategoryProductsPage';
 import LoginPage from '../../pages/LoginPage';
 import RegisterPage from '../../pages/RegisterPage';
 import ProfilePage from '../../pages/profile/ProfilePage';
@@ -12,12 +15,23 @@ import EditEmailTab from '../../pages/profile/components/EditEmailTab';
 import ForgotPasswordPage from '../../pages/auth/ForgotPasswordPage';
 import VerifyForgotOtpPage from '../../pages/auth/VerifyForgotOtpPage';
 import ResetPasswordPage from '../../pages/auth/ResetPasswordPage';
+import ProductDetailPage from '../../pages/product/ProductDetailPage';
+import NotFoundPage from '../../pages/NotFoundPage';
 
 const AppRoutes = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<HomePage />} />
+
+        <Route path="/search" element={<SearchPage />} />
+
+        <Route path="/products/category/:categoryId" element={<CategoryProductsPage />} />
+        <Route path="/products/:productId" element={<ProductDetailPage />} />
+        <Route path="/products" element={<CategoryProductsPage />} />
+
+        <Route path="/404" element={<NotFoundPage />} />
 
         <Route
           path="/login"

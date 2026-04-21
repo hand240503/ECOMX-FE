@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { cn } from '../../lib/cn';
 
 interface OtpInputProps {
   value: string;
@@ -81,13 +82,16 @@ export default function OtpInput({
             onChange={(event) => handleInput(index, event.target.value)}
             onKeyDown={(event) => handleKeyDown(index, event.key)}
             disabled={disabled}
-            className={`h-12 w-11 text-center rounded-xl border text-lg font-semibold tracking-wide outline-none focus:ring-2 ${
-              error ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 focus:ring-rose-500'
-            } ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+            className={cn(
+              'h-12 w-11 rounded-sm border text-center text-lg font-semibold tracking-wide outline-none transition-all duration-200',
+              'focus:border-primary focus:ring-2 focus:ring-primary/20',
+              error ? 'border-danger focus:ring-danger/20' : 'border-border',
+              disabled ? 'cursor-not-allowed bg-background text-text-disabled' : 'bg-surface text-text-primary'
+            )}
           />
         ))}
       </div>
-      {error ? <p className="mt-1.5 text-xs text-red-500">{error}</p> : null}
+      {error ? <p className="mt-1.5 text-caption text-danger">{error}</p> : null}
     </div>
   );
 }

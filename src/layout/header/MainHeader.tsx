@@ -1,4 +1,10 @@
+import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
+import { productService } from '../../api/services/productService';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
 import flagVi from '../../assets/flags/vn.png';
@@ -7,9 +13,16 @@ import { useAuth } from '../../app/auth/AuthProvider';
 import { buildUserBadge } from '../../domain/user/buildUserBadge';
 import { authService } from '../../api/services';
 import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavigation';
+import { decodeSearchQuery } from '../../hooks/useSearchUrlState';
+import { pushSearchHistory } from '../../lib/searchHistory';
 interface MainHeaderProps {
   cartCount?: number;
 }
+
+const HEADER_SEARCH_SUGGEST_DEBOUNCE_MS = 1000;
+const HEADER_SEARCH_SUGGEST_LIMIT = 5;
+
+const formatSuggestPrice = (value: number) => `${value.toLocaleString('vi-VN')} ₫`;
 
 const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,6 +33,26 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
   const headerRef = useRef<HTMLDivElement>(null);
   const [overlayTop, setOverlayTop] = useState(0);
   const { isRouteLoading, navigateWithLoading } = useRouteLoadingNavigation();
+  const location = useLocation();
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, HEADER_SEARCH_SUGGEST_DEBOUNCE_MS);
+  const debouncedTrim = debouncedSearchQuery.trim();
+  const typingTrim = searchQuery.trim();
+  const isWaitingDebounce =
+    isSearchOpen && typingTrim.length > 0 && typingTrim !== debouncedTrim;
+
+  const headerSuggestQuery = useQuery({
+    queryKey: ['products', 'search', 'header-suggest', debouncedTrim, HEADER_SEARCH_SUGGEST_LIMIT],
+    queryFn: ({ signal }) =>
+      productService.search({
+        q: debouncedTrim,
+        page: 0,
+        limit: HEADER_SEARCH_SUGGEST_LIMIT,
+        signal,
+      }),
+    enabled: isSearchOpen && debouncedTrim.length > 0,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
   const { lang, setLang, t } = useI18n();
   const langOptions: { value: Lang; label: string; flag: string }[] = [
     { value: 'vi', label: t('lang_vi'), flag: flagVi },
@@ -80,11 +113,42 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
     navigateWithLoading('/login');
   };
 
+  useEffect(() => {
+    if (location.pathname !== '/search') return;
+    const q = new URLSearchParams(location.search).get('q');
+    setSearchQuery(decodeSearchQuery(q));
+  }, [location.pathname, location.search]);
+
+  const submitSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed) pushSearchHistory(trimmed);
+    setIsSearchOpen(false);
+    navigateWithLoading({
+      pathname: '/search',
+      search: trimmed ? `?q=${encodeURIComponent(trimmed)}` : '',
+    });
+  };
+
+  const pickSuggestedProduct = (productName: string) => {
+    const name = productName.trim();
+    if (!name) return;
+    setSearchQuery(name);
+    pushSearchHistory(name);
+    setIsSearchOpen(false);
+    navigateWithLoading({
+      pathname: '/search',
+      search: `?q=${encodeURIComponent(name)}`,
+    });
+  };
+
   return (
-    <header ref={headerRef} className="w-full bg-white border-b">
+    <header
+      ref={headerRef}
+      className="z-40 w-full border-b bg-white shadow-[0_1px_0_rgba(15,23,42,0.06)]"
+    >
       <div className="w-full flex justify-center">
-        <div className="w-full max-w-[1392px] mx-auto py-3 flex items-start gap-6">
-          <div className="w-[110px] flex flex-col items-center justify-center flex-shrink-0">
+        <div className="mx-auto flex w-full max-w-container items-start gap-6 py-3">
+          <div onClick={() => navigateWithLoading('/')} className="w-[110px] cursor-pointer flex flex-col items-center justify-center flex-shrink-0">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-4 py-2.5 w-full flex justify-center shadow-md hover:shadow-lg transition-shadow">
               <span className="text-white font-black text-2xl leading-none tracking-tight">
                 ECOMX
@@ -112,12 +176,26 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                     value={searchQuery}
                     onFocus={() => setIsSearchOpen(true)}
                     onClick={() => setIsSearchOpen(true)}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSearchQuery(v);
+                      if (location.pathname === '/search' && v === '') {
+                        navigateWithLoading({ pathname: '/search', search: '' });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitSearch();
+                      }
+                    }}
                     className="flex-1 h-full text-sm outline-none border-none focus:outline-none focus:ring-0"
                   />
 
                   <button
+                    type="button"
                     data-view-id="main_search_form_button"
+                    onClick={() => submitSearch()}
                     className="h-full px-5 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
                   >
                     {t('header_search_button')}
@@ -125,12 +203,105 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                 </div>
 
                 {isSearchOpen && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+2px)] h-[360px] bg-white rounded-lg border border-gray-200 shadow-lg z-40" />
+                  <div
+                    className="absolute left-0 right-0 top-[calc(100%+2px)] z-40 max-h-[360px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                    role="listbox"
+                    aria-label={t('header_search_suggestions_title')}
+                  >
+                    <div className="flex max-h-[360px] flex-col overflow-y-auto">
+                      <div className="sticky top-0 border-b border-border bg-surface px-3 py-2">
+                        <p className="text-caption font-semibold text-text-primary">
+                          {t('header_search_suggestions_title')}
+                        </p>
+                      </div>
+
+                      {isWaitingDebounce && (
+                        <div className="flex items-center gap-2 px-3 py-6 text-caption text-text-secondary">
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden />
+                          {t('header_search_suggestions_waiting')}
+                        </div>
+                      )}
+
+                      {!isWaitingDebounce &&
+                        debouncedTrim.length > 0 &&
+                        headerSuggestQuery.isLoading && (
+                          <div className="space-y-2 px-3 py-3">
+                            {Array.from({ length: HEADER_SEARCH_SUGGEST_LIMIT }).map((_, i) => (
+                              <div
+                                key={i}
+                                className="flex animate-pulse gap-3 rounded-md border border-border p-2"
+                              >
+                                <div className="h-12 w-12 shrink-0 rounded bg-border" />
+                                <div className="flex flex-1 flex-col justify-center gap-2">
+                                  <div className="h-3 w-[80%] rounded bg-border" />
+                                  <div className="h-3 w-1/3 rounded bg-border" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {!isWaitingDebounce &&
+                        debouncedTrim.length > 0 &&
+                        !headerSuggestQuery.isLoading &&
+                        headerSuggestQuery.isError && (
+                          <p className="px-3 py-6 text-center text-caption text-text-secondary">
+                            {t('header_search_suggestions_error')}
+                          </p>
+                        )}
+
+                      {!isWaitingDebounce &&
+                        debouncedTrim.length > 0 &&
+                        !headerSuggestQuery.isLoading &&
+                        !headerSuggestQuery.isError &&
+                        (headerSuggestQuery.data?.products?.length ?? 0) === 0 && (
+                          <p className="px-3 py-6 text-center text-caption text-text-secondary">
+                            {t('header_search_suggestions_empty')}
+                          </p>
+                        )}
+
+                      {!isWaitingDebounce &&
+                        debouncedTrim.length > 0 &&
+                        !headerSuggestQuery.isLoading &&
+                        !headerSuggestQuery.isError &&
+                        (headerSuggestQuery.data?.products?.length ?? 0) > 0 &&
+                        headerSuggestQuery.data!.products
+                          .slice(0, HEADER_SEARCH_SUGGEST_LIMIT)
+                          .map((p) => {
+                            const card = mapProductFullToCard(p);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                role="option"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => pickSuggestedProduct(card.name)}
+                                className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                              >
+                                <img
+                                  src={card.image}
+                                  alt=""
+                                  className="h-12 w-12 shrink-0 rounded-md object-cover"
+                                  loading="lazy"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="line-clamp-2 text-body text-text-primary">
+                                    {card.name}
+                                  </p>
+                                  <p className="mt-0.5 text-caption font-semibold text-danger">
+                                    {formatSuggestPrice(card.price)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                    </div>
+                  </div>
                 )}
               </div>
 
               <div data-view-id="header_user_shortcut" className="flex items-center gap-2">
-                <button className="h-10 px-3 flex items-center gap-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0">
+                <button onClick={() => navigateWithLoading('/')} className="h-10 px-3 flex items-center gap-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                   </svg>
