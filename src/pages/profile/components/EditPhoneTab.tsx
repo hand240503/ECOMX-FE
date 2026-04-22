@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { useAuth } from '../../../app/auth/AuthProvider';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
@@ -8,6 +9,7 @@ import { authInputClass } from '../../../lib/authFormClasses';
 import { cn } from '../../../lib/cn';
 
 export default function EditPhoneTab() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber?.trim() ?? '');
@@ -25,7 +27,7 @@ export default function EditPhoneTab() {
     const nextPhone = phoneNumber.trim();
     if (!isConfirmStep) {
       if (!nextPhone) {
-        notify.error('Vui lòng nhập số điện thoại.');
+        notify.error(t('profile_phone_error_empty'));
         return;
       }
       setIsConfirmStep(true);
@@ -34,7 +36,7 @@ export default function EditPhoneTab() {
 
     const nextPassword = currentPassword.trim();
     if (!nextPassword) {
-      notify.error('Vui lòng nhập mật khẩu.');
+      notify.error(t('profile_phone_error_password'));
       return;
     }
 
@@ -45,12 +47,12 @@ export default function EditPhoneTab() {
         currentPassword: currentPassword
       });
       await authService.fetchCurrentUser();
-      notify.success('Cập nhật số điện thoại thành công');
+      notify.success(t('profile_phone_success'));
       setCurrentPassword('');
       setIsConfirmStep(false);
       navigate('/account');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Cập nhật số điện thoại thất bại';
+      const message = error instanceof Error ? error.message : t('profile_phone_error_failed');
       notify.error(message);
     } finally {
       setIsSaving(false);
@@ -72,12 +74,10 @@ export default function EditPhoneTab() {
         )}
       >
         <h2 className="text-heading text-text-primary">
-          {isConfirmStep ? 'Xác nhận mật khẩu' : 'Cập nhật số điện thoại'}
+          {isConfirmStep ? t('profile_phone_title_confirm') : t('profile_phone_title_update')}
         </h2>
         <p className="mt-1 text-body text-text-secondary">
-          {isConfirmStep
-            ? 'Nhập mật khẩu hiện tại để xác nhận thay đổi số điện thoại.'
-            : 'Nhập số điện thoại bạn muốn sử dụng cho tài khoản.'}
+          {isConfirmStep ? t('profile_phone_desc_confirm') : t('profile_phone_desc_enter')}
         </p>
 
         <div className="mt-5">
@@ -85,7 +85,7 @@ export default function EditPhoneTab() {
             htmlFor={isConfirmStep ? 'profile-phone-password' : 'profile-phone-number'}
             className="mb-2 block text-caption font-semibold text-text-primary"
           >
-            {isConfirmStep ? 'Mật khẩu' : 'Số điện thoại'}
+            {isConfirmStep ? t('label_password') : t('profile_label_phone')}
           </label>
           <input
             id={isConfirmStep ? 'profile-phone-password' : 'profile-phone-number'}
@@ -94,7 +94,7 @@ export default function EditPhoneTab() {
             onChange={(event) =>
               isConfirmStep ? setCurrentPassword(event.target.value) : setPhoneNumber(event.target.value)
             }
-            placeholder={isConfirmStep ? 'Nhập mật khẩu để xác nhận' : 'Nhập số điện thoại'}
+            placeholder={isConfirmStep ? t('profile_phone_placeholder_password') : t('profile_phone_placeholder_phone')}
             autoComplete={isConfirmStep ? 'current-password' : 'tel'}
             className={authInputClass(false, isSaving)}
           />
@@ -103,7 +103,7 @@ export default function EditPhoneTab() {
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
           {isConfirmStep ? (
             <Button type="button" variant="profileGhost" onClick={handleBack} disabled={isSaving} className="rounded-sm sm:min-w-[120px]">
-              Quay lại
+              {t('btn_back')}
             </Button>
           ) : null}
           <Button
@@ -114,7 +114,7 @@ export default function EditPhoneTab() {
             loading={isSaving}
             className="rounded-sm sm:min-w-[140px]"
           >
-            {isSaving ? null : isConfirmStep ? 'Xác nhận' : 'Lưu thay đổi'}
+            {isSaving ? null : isConfirmStep ? t('btn_confirm') : t('profile_btn_save_changes')}
           </Button>
         </div>
       </div>

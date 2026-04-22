@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
 import { productService } from '../../api/services/productService';
@@ -9,22 +9,24 @@ import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
 import flagVi from '../../assets/flags/vn.png';
 import flagEn from '../../assets/flags/gb.png';
+import cartIcon from '../../assets/icon/cart.png';
 import { useAuth } from '../../app/auth/AuthProvider';
 import { buildUserBadge } from '../../domain/user/buildUserBadge';
 import { authService } from '../../api/services';
 import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavigation';
 import { decodeSearchQuery } from '../../hooks/useSearchUrlState';
 import { pushSearchHistory } from '../../lib/searchHistory';
-interface MainHeaderProps {
-  cartCount?: number;
-}
+import { useUserAddresses } from '../../hooks/useUserAddresses';
+import { formatAddressDetail } from '../../domain/address/formatAddressDetail';
+import { cn } from '../../lib/cn';
+import { useCart } from '../../app/cart/CartProvider';
 
 const HEADER_SEARCH_SUGGEST_DEBOUNCE_MS = 1000;
 const HEADER_SEARCH_SUGGEST_LIMIT = 5;
 
 const formatSuggestPrice = (value: number) => `${value.toLocaleString('vi-VN')} ₫`;
 
-const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
+const MainHeader = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -32,8 +34,12 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
   const langWrapperRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [overlayTop, setOverlayTop] = useState(0);
-  const { isRouteLoading, navigateWithLoading } = useRouteLoadingNavigation();
+  const { isTopLoadingBarVisible, navigateWithLoading, startRouteTransition } = useRouteLoadingNavigation();
   const location = useLocation();
+  const isHomeActive = location.pathname === '/';
+  const isCartActive = location.pathname === '/cart';
+  const isAccountActive =
+    location.pathname === '/account' || location.pathname.startsWith('/account/');
   const debouncedSearchQuery = useDebouncedValue(searchQuery, HEADER_SEARCH_SUGGEST_DEBOUNCE_MS);
   const debouncedTrim = debouncedSearchQuery.trim();
   const typingTrim = searchQuery.trim();
@@ -54,12 +60,27 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
     refetchOnWindowFocus: false,
   });
   const { lang, setLang, t } = useI18n();
+  const { totalQuantity: cartCount } = useCart();
   const langOptions: { value: Lang; label: string; flag: string }[] = [
     { value: 'vi', label: t('lang_vi'), flag: flagVi },
     { value: 'en', label: t('lang_en'), flag: flagEn }
   ];
   const currentLang = langOptions.find((item) => item.value === lang) ?? langOptions[0];
   const { user, isAuthenticated } = useAuth();
+  const { data: addressList } = useUserAddresses({ enabled: isAuthenticated });
+
+  const deliveryAddressLine = useMemo(() => {
+    if (!isAuthenticated) return null;
+    if (addressList != null && addressList.length > 0) {
+      const picked = addressList.find((a) => a.isDefault) ?? addressList[0];
+      return formatAddressDetail(picked);
+    }
+    if (user?.defaultAddress) {
+      return formatAddressDetail(user.defaultAddress);
+    }
+    return null;
+  }, [isAuthenticated, addressList, user?.defaultAddress]);
+
   const userBadge = buildUserBadge(
     {
       fullName: user?.userInfo?.fullName,
@@ -301,21 +322,41 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
               </div>
 
               <div data-view-id="header_user_shortcut" className="flex items-center gap-2">
-                <button onClick={() => navigateWithLoading('/')} className="h-10 px-3 flex items-center gap-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0">
+                <button
+                  type="button"
+                  onClick={() => navigateWithLoading('/')}
+                  className={cn(
+                    'h-10 px-3 flex items-center gap-2 rounded-lg transition-colors outline-none focus:outline-none focus:ring-0',
+                    isHomeActive
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  )}
+                >
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
                   </svg>
                   <span className="text-sm font-medium hidden xl:block">{t('header_home')}</span>
                 </button>
-                <button className="relative h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 outline-none focus:outline-none focus:ring-0 group">
+                <button
+                  type="button"
+                  onClick={() => navigateWithLoading('/cart')}
+                  className={cn(
+                    'relative h-10 px-3 flex items-center gap-2 rounded-lg transition-all duration-200 outline-none focus:outline-none focus:ring-0 group',
+                    isCartActive
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  )}
+                  aria-label={t('header_cart_aria')}
+                >
                   <div className="relative">
-                    <svg className="w-6 h-6 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                      />
-                    </svg>
+                    <img
+                      src={cartIcon}
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain transition-transform group-hover:scale-110"
+                      decoding="async"
+                    />
 
                     {cartCount > 0 && (
                       <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
@@ -350,8 +391,9 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                           key={item.value}
                           type="button"
                           onClick={() => {
-                            setLang(item.value);
                             setIsLangOpen(false);
+                            if (item.value === lang) return;
+                            startRouteTransition(() => setLang(item.value), 450);
                           }}
                           className={`w-full px-3 py-2.5 text-left flex items-center gap-2 hover:bg-blue-50 transition-colors ${lang === item.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                             }`}
@@ -376,8 +418,14 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                     onMouseLeave={() => setIsUserMenuOpen(false)}
                   >
                     <button
+                      type="button"
                       onClick={() => navigateWithLoading('/account')}
-                      className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
+                      className={cn(
+                        'h-10 px-3 flex items-center gap-2 rounded-lg transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300',
+                        isAccountActive
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                      )}
                     >
                       {userBadge.avatarUrl ? (
                         <img
@@ -402,21 +450,21 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
                             onClick={() => navigateWithLoading('/account')}
                             className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
                           >
-                            Tài khoản của tôi
+                            {t('header_my_account')}
                           </button>
                           <button
                             type="button"
                             onClick={() => navigateWithLoading('/orders')}
                             className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
                           >
-                            Đơn hàng
+                            {t('header_orders')}
                           </button>
                           <button
                             type="button"
                             onClick={handleLogout}
                             className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
                           >
-                            Đăng xuất
+                            {t('header_logout')}
                           </button>
                         </div>
                       </div>
@@ -439,20 +487,46 @@ const MainHeader = ({ cartCount = 0 }: MainHeaderProps) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <div className="flex min-w-0 items-start gap-3">
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
+                aria-hidden
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
               </svg>
-              <span className="text-sm text-gray-600">{t('header_delivery_to')}</span>
-              <button className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors underline outline-none focus:outline-none focus:ring-0 group">
-                {t('header_delivery_prompt')}
-              </button>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+                <span className="shrink-0 text-sm text-gray-600">{t('header_delivery_to')}</span>
+                {deliveryAddressLine ? (
+                  <button
+                    type="button"
+                    onClick={() => navigateWithLoading('/account/address')}
+                    title={deliveryAddressLine}
+                    className="min-w-0 max-w-full truncate text-left text-sm font-bold text-gray-900 underline decoration-gray-900/70 underline-offset-2 outline-none transition-colors hover:text-blue-600 hover:decoration-blue-600/70 focus:outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:ring-offset-0"
+                  >
+                    {deliveryAddressLine}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigateWithLoading(isAuthenticated ? '/account/address/new' : '/login')
+                    }
+                    className="w-fit text-left text-sm font-medium text-gray-900 underline decoration-gray-400/50 underline-offset-2 outline-none transition-colors hover:text-blue-600 focus:outline-none focus:ring-0"
+                  >
+                    {t('header_delivery_prompt')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div >
-      {isRouteLoading && (
+      {isTopLoadingBarVisible && (
         <div className="profile-top-loading" aria-hidden="true">
           <div className="profile-top-loading__bar" />
         </div>

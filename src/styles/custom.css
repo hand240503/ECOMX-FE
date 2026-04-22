@@ -1,44 +1,3 @@
-/* ===== Profile Page - Breadcrumb ===== */
-.profile-breadcrumb {
-   display: flex;
-   align-items: center;
-   gap: 4px;
-   width: 100%;
-   max-width: 1240px;
-   margin: 0 auto;
-   min-height: 40px;
-   font-size: 14px;
-   font-weight: 300;
-   line-height: 20px;
-   padding: 0 15px;
-}
-
-.profile-breadcrumb__link {
-   color: #808089;
-   text-decoration: none;
-   white-space: nowrap;
-   cursor: pointer;
-   min-height: 40px;
-   display: flex;
-   align-items: center;
-}
-
-.profile-breadcrumb__link:hover {
-   color: #1a94ff;
-   text-decoration: underline;
-}
-
-.profile-breadcrumb__separator {
-   color: #808089;
-   white-space: nowrap;
-}
-
-.profile-breadcrumb__current {
-   color: #38383d;
-   white-space: nowrap;
-   cursor: default;
-}
-
 /* ===== Profile Page - Layout 2 cột ===== */
 .profile-layout {
    display: grid;
@@ -100,6 +59,37 @@
    overflow: hidden;
 }
 
+.profile-sidebar__user-line--stack {
+   flex-direction: column;
+   align-items: flex-start;
+   gap: 2px;
+}
+
+.profile-sidebar__user-heading {
+   display: flex;
+   flex-direction: column;
+   align-items: flex-start;
+   gap: 0;
+   min-width: 0;
+   width: 100%;
+}
+
+.profile-sidebar__user-prefix {
+   font-size: 12px;
+   line-height: 1.3;
+   font-weight: 400;
+   color: #757575;
+}
+
+.profile-sidebar__user-line--stack .profile-sidebar__user-name {
+   font-size: 15px;
+   font-weight: 600;
+   color: #212121;
+   white-space: normal;
+   overflow: visible;
+   text-overflow: clip;
+}
+
 .profile-sidebar__user-line-sep {
    flex-shrink: 0;
    width: 3px;
@@ -131,6 +121,11 @@
    text-overflow: ellipsis;
    min-width: 0;
    max-width: 45%;
+}
+
+.profile-sidebar__user-nickname--block {
+   max-width: 100%;
+   margin-top: 2px;
 }
 
 .profile-sidebar__nav {
@@ -184,7 +179,12 @@
    font-size: 20px;
    line-height: 32px;
    font-weight: 300;
-   margin: 4px 0px 12px
+   margin: 0 0 12px;
+   padding: 0;
+   color: #27272a;
+   text-align: left;
+   width: 100%;
+   box-sizing: border-box;
 }
 
 .profile-content {
@@ -193,6 +193,11 @@
    border: 1px solid #e5e7eb;
    padding: 24px;
    min-height: 400px;
+}
+
+.profile-content h2 {
+   text-align: left;
+   margin-left: 0;
 }
 
 /* ===== Profile Page - Tab Content Loading ===== */

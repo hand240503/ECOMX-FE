@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { Button } from '../../../components/ui';
 import { authInputClass } from '../../../lib/authFormClasses';
 import { cn } from '../../../lib/cn';
@@ -80,11 +81,8 @@ function PasswordField({
 }
 
 function TipsCard() {
-  const tips = [
-    'Không dùng lại mật khẩu cũ đã từng sử dụng.',
-    'Ưu tiên mật khẩu có chữ hoa, chữ thường, số và ký tự đặc biệt.',
-    'Không chia sẻ mật khẩu cho bất kỳ ai để đảm bảo an toàn tài khoản.'
-  ];
+  const { t } = useI18n();
+  const tips = ['profile_password_tip_1', 'profile_password_tip_2', 'profile_password_tip_3'] as const;
 
   return (
     <div
@@ -93,10 +91,10 @@ function TipsCard() {
         'tablet:p-5'
       )}
     >
-      <h2 className="text-heading text-text-primary">Lưu ý bảo mật</h2>
+      <h2 className="text-heading text-text-primary">{t('profile_password_security_notes')}</h2>
       <ul className="mt-3 list-none space-y-3 p-0">
-        {tips.map((text) => (
-          <li key={text} className="flex gap-2.5 text-body text-text-primary">
+        {tips.map((key) => (
+          <li key={key} className="flex gap-2.5 text-body text-text-primary">
             <span
               className={cn(
                 'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full',
@@ -106,7 +104,7 @@ function TipsCard() {
             >
               !
             </span>
-            <span>{text}</span>
+            <span>{t(key)}</span>
           </li>
         ))}
       </ul>
@@ -115,6 +113,7 @@ function TipsCard() {
 }
 
 export default function EditPasswordTab() {
+  const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -141,16 +140,16 @@ export default function EditPasswordTab() {
 
   const handleSubmit = async () => {
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      notify.error('Vui lòng nhập đầy đủ thông tin.');
+      notify.error(t('profile_error_fill_all_password'));
       return;
     }
 
     if (!isNewPasswordValid) {
-      notify.error('Mật khẩu mới phải dài 8 đến 32 ký tự, bao gồm chữ và số.');
+      notify.error(t('profile_error_new_password_rules'));
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      notify.error('Mật khẩu mới không khớp.');
+      notify.error(t('profile_error_password_mismatch'));
       return;
     }
 
@@ -161,13 +160,13 @@ export default function EditPasswordTab() {
         newPassword: newPassword.trim(),
         confirmPassword: confirmNewPassword.trim()
       });
-      notify.success('Đổi mật khẩu thành công');
+      notify.success(t('profile_notify_password_changed'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
       navigate('/account');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Đổi mật khẩu thất bại';
+      const msg = e instanceof Error ? e.message : t('profile_error_password_change_failed');
       notify.error(msg);
     } finally {
       setIsSaving(false);
@@ -191,39 +190,39 @@ export default function EditPasswordTab() {
           <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
             <PasswordField
               id="current-password"
-              label="Mật khẩu hiện tại"
+              label={t('profile_label_current_password')}
               value={currentPassword}
               onChange={setCurrentPassword}
-              placeholder="Nhập mật khẩu hiện tại"
+              placeholder={t('profile_placeholder_current_password')}
               autoComplete="current-password"
               show={showCurrentPassword}
               onToggle={() => setShowCurrentPassword((p) => !p)}
-              hideLabel="Ẩn mật khẩu hiện tại"
-              showLabel="Hiện mật khẩu hiện tại"
+              hideLabel={t('profile_aria_hide_current_password')}
+              showLabel={t('profile_aria_show_current_password')}
             />
             <PasswordField
               id="new-password"
-              label="Mật khẩu mới"
+              label={t('profile_label_new_password')}
               value={newPassword}
               onChange={setNewPassword}
-              placeholder="Nhập mật khẩu mới"
+              placeholder={t('profile_placeholder_new_password')}
               autoComplete="new-password"
               show={showNewPassword}
               onToggle={() => setShowNewPassword((p) => !p)}
-              hideLabel="Ẩn mật khẩu mới"
-              showLabel="Hiện mật khẩu mới"
+              hideLabel={t('profile_aria_hide_new_password')}
+              showLabel={t('profile_aria_show_new_password')}
             />
             <PasswordField
               id="confirm-new-password"
-              label="Nhập lại mật khẩu mới"
+              label={t('profile_label_confirm_new_password')}
               value={confirmNewPassword}
               onChange={setConfirmNewPassword}
-              placeholder="Nhập lại mật khẩu mới"
+              placeholder={t('profile_placeholder_confirm_new_password')}
               autoComplete="new-password"
               show={showConfirmPassword}
               onToggle={() => setShowConfirmPassword((p) => !p)}
-              hideLabel="Ẩn xác nhận mật khẩu"
-              showLabel="Hiện xác nhận mật khẩu"
+              hideLabel={t('profile_aria_hide_confirm_password')}
+              showLabel={t('profile_aria_show_confirm_password')}
             />
 
             <Button
@@ -234,7 +233,7 @@ export default function EditPasswordTab() {
               loading={isSaving}
               className={cn('mt-2 rounded-sm', 'w-full tablet:ml-[calc(160px+1rem)] tablet:w-auto tablet:min-w-[180px]')}
             >
-              {isSaving ? null : 'Lưu thay đổi'}
+              {isSaving ? null : t('profile_btn_save_changes')}
             </Button>
           </form>
         </div>

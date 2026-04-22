@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { AlertTriangle, ChevronRight, RefreshCw, Shield, ShoppingCart, Store, Truck } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronRight,
+  Percent,
+  RefreshCw,
+  Shield,
+  ShoppingCart,
+  Sparkles,
+  Store,
+  Tag,
+  Truck,
+  type LucideIcon
+} from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import CategoryBreadcrumb, { type BreadcrumbItem } from '../category/CategoryBreadcrumb';
@@ -15,11 +27,18 @@ import { ProductGallery } from '../../components/product/detail/ProductGallery';
 import { ProductRecommendations } from '../../components/product/detail/ProductRecommendations';
 import { ProductReviewsPlaceholder } from '../../components/product/detail/ProductReviewsPlaceholder';
 import { useProductDetail } from '../../hooks/useProductDetail';
+import { useCart } from '../../app/cart/CartProvider';
 import { useI18n } from '../../i18n/I18nProvider';
 import { getProductImageUrls } from '../../lib/productImage';
 import type { ProductDetailPriceRow } from '../../api/mappers/productDetailMapper';
 import { cn } from '../../lib/cn';
 import { formatPrice } from '../../lib/formatPrice';
+import {
+  policiesToBadgeChips,
+  policiesToDisplayRows,
+  type PolicyBadgeVariant,
+  type PolicyDisplayIcon
+} from '../../lib/productPolicies';
 
 function truncateLabel(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -42,6 +61,23 @@ const PDP_DESC_COLLAPSED_MAX_PX = 400;
 /** Chỉ hiện “xem thêm” khi độ dài text (sau bỏ thẻ) đạt tối thiểu */
 const PDP_DESC_MIN_PLAIN_CHARS = 320;
 
+const POLICY_ICON_MAP: Record<PolicyDisplayIcon, LucideIcon> = {
+  truck: Truck,
+  refresh: RefreshCw,
+  shield: Shield,
+  percent: Percent,
+  tag: Tag,
+  sparkles: Sparkles
+};
+
+const POLICY_BADGE_VARIANT_CLASS: Record<PolicyBadgeVariant, string> = {
+  primary: 'rounded-md bg-primary/10 px-2 py-1 text-caption font-bold text-primary',
+  warning: 'rounded-md bg-warning/15 px-2 py-1 text-caption font-bold text-warning',
+  success: 'rounded-md bg-success/12 px-2 py-1 text-caption font-bold text-success',
+  accent: 'rounded-md bg-violet-100 px-2 py-1 text-caption font-bold text-violet-800',
+  neutral: 'rounded-md bg-gray-200/90 px-2 py-1 text-caption font-bold text-text-secondary'
+};
+
 function descriptionPlainTextLength(html: string): number {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().length;
 }
@@ -49,8 +85,8 @@ function descriptionPlainTextLength(html: string): number {
 const ProductDetailPage = () => {
   const { productId } = useParams<{ productId: string }>();
   const { t } = useI18n();
+  const { addItem } = useCart();
 
-  const [cartCount, setCartCount] = useState(5);
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -75,6 +111,26 @@ const ProductDetailPage = () => {
   const imageUrls = useMemo(
     () => (data?.product ? getProductImageUrls(data.product) : []),
     [data?.product]
+  );
+
+  const policyLabels = useMemo(
+    () => ({
+      ordersFromTemplate: t('pdp_policy_orders_from_template'),
+      saveAmountTemplate: t('pdp_policy_save_template'),
+      discountPercentTemplate: t('pdp_policy_discount_percent_template'),
+      returnDaysTemplate: t('pdp_policy_return_days_template')
+    }),
+    [t]
+  );
+
+  const policyRows = useMemo(
+    () => policiesToDisplayRows(data?.product?.policies, policyLabels),
+    [data?.product?.policies, policyLabels]
+  );
+
+  const policyBadges = useMemo(
+    () => policiesToBadgeChips(data?.product?.policies, 4),
+    [data?.product?.policies]
   );
 
   useEffect(() => {
@@ -217,7 +273,15 @@ const ProductDetailPage = () => {
     setAddCartLoading(true);
     try {
       await simulateCartApi('cart');
-      setCartCount((c) => c + quantity);
+      addItem({
+        productId: detailModel.id,
+        productName: detailModel.productName,
+        thumbnailUrl: imageUrls[0] ?? null,
+        unitId: selectedPrice.unitId,
+        unitName: selectedPrice.unitName,
+        unitPrice: selectedPrice.currentValue,
+        quantity
+      });
       toast.success(t('pdp_add_cart_ok'));
     } catch {
       toast.error(t('pdp_cart_error'));
@@ -231,7 +295,15 @@ const ProductDetailPage = () => {
     setBuyNowLoading(true);
     try {
       await simulateCartApi('buy');
-      setCartCount((c) => c + quantity);
+      addItem({
+        productId: detailModel.id,
+        productName: detailModel.productName,
+        thumbnailUrl: imageUrls[0] ?? null,
+        unitId: selectedPrice.unitId,
+        unitName: selectedPrice.unitName,
+        unitPrice: selectedPrice.currentValue,
+        quantity
+      });
       toast.success(t('pdp_buy_now_ok'));
     } catch {
       toast.error(t('pdp_cart_error'));
@@ -241,11 +313,9 @@ const ProductDetailPage = () => {
   };
 
   const handleWishlist = () => {
-    setWishlisted((w) => {
-      const next = !w;
-      toast.success(next ? t('pdp_wishlist_added') : t('pdp_wishlist_removed'));
-      return next;
-    });
+    const next = !wishlisted;
+    setWishlisted(next);
+    toast.success(next ? t('pdp_wishlist_added') : t('pdp_wishlist_removed'));
   };
 
   const ratingBlock =
@@ -284,7 +354,7 @@ const ProductDetailPage = () => {
         showMobileSticky && 'pb-[88px] tablet:pb-0'
       )}
     >
-      <MainHeader cartCount={cartCount} />
+      <MainHeader />
 
       <main className="flex-1">
         {/* Breadcrumb */}
@@ -303,7 +373,10 @@ const ProductDetailPage = () => {
           </div>
         )}
 
-        <div className="mx-auto max-w-container px-4 py-4 tablet:px-6 tablet:py-6 [--pdp-sticky-top:1rem] tablet:[--pdp-sticky-top:1.5rem]">
+        <div className="mx-auto max-w-container px-4 pt-1.5 pb-4 
+        tablet:px-6 tablet:pt-1.5 tablet:pb-6 
+        [--pdp-sticky-top:1rem] tablet:[--pdp-sticky-top:1.5rem]"
+        >
 
           {/* Error */}
           {isError && (
@@ -350,18 +423,6 @@ const ProductDetailPage = () => {
 
           {!isPending && !isError && detailModel && selectedPrice && (
             <>
-              {/* Promo banners */}
-              <div className="mb-4 grid gap-3 tablet:grid-cols-2">
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-caption text-text-primary shadow-sm">
-                  <span className="font-medium">{t('pdp_promo_card_1')}</span>
-                  <span className="shrink-0 text-primary">{t('pdp_promo_register_hint')}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-caption text-text-primary shadow-sm">
-                  <span className="font-medium">{t('pdp_promo_card_2')}</span>
-                  <span className="shrink-0 text-primary">{t('pdp_promo_register_hint')}</span>
-                </div>
-              </div>
-
               {/*
                * VÙNG 3 CỘT CHÍNH — sticky hoạt động trong phạm vi wrapper này.
                * Reviews và recommendations được đặt NGOÀI wrapper này (bên dưới),
@@ -408,17 +469,19 @@ const ProductDetailPage = () => {
                     {/* Block thông tin sản phẩm */}
                     <div className="rounded-xl border border-border bg-surface p-4 shadow-sm tablet:p-5">
                       <div className="mb-4 flex flex-col gap-3 border-b border-border/80 pb-4 tablet:flex-row tablet:items-start tablet:justify-between">
-                        <div className="flex flex-wrap gap-2">
-                          <span className="rounded-md bg-primary/10 px-2 py-1 text-caption font-bold text-primary">
-                            {t('pdp_badge_freeship')}
-                          </span>
-                          <span className="rounded-md bg-warning/15 px-2 py-1 text-caption font-bold text-warning">
-                            {t('pdp_badge_return')}
-                          </span>
-                          <span className="rounded-md bg-success/12 px-2 py-1 text-caption font-bold text-success">
-                            {t('pdp_badge_authentic')}
-                          </span>
-                        </div>
+                        {policyBadges.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {policyBadges.map((chip) => (
+                              <span
+                                key={chip.id}
+                                className={POLICY_BADGE_VARIANT_CLASS[chip.variant]}
+                                title={chip.label}
+                              >
+                                {chip.label}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                         {detailModel.brand && (
                           <Link
                             to={`/search?q=${encodeURIComponent(detailModel.brand.name)}`}
@@ -542,26 +605,28 @@ const ProductDetailPage = () => {
                         </div>
                       )}
 
-                      <ul className="mt-6 space-y-3 border-t border-border/80 pt-5">
-                        <li className="flex gap-3 text-body text-text-secondary">
-                          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Truck size={18} strokeWidth={2} aria-hidden />
-                          </span>
-                          <span className="leading-relaxed">{t('pdp_perk_ship')}</span>
-                        </li>
-                        <li className="flex gap-3 text-body text-text-secondary">
-                          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <RefreshCw size={18} strokeWidth={2} aria-hidden />
-                          </span>
-                          <span className="leading-relaxed">{t('pdp_perk_return')}</span>
-                        </li>
-                        <li className="flex gap-3 text-body text-text-secondary">
-                          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Shield size={18} strokeWidth={2} aria-hidden />
-                          </span>
-                          <span className="leading-relaxed">{t('pdp_perk_warranty')}</span>
-                        </li>
-                      </ul>
+                      {policyRows.length > 0 ? (
+                        <ul className="mt-6 space-y-3 border-t border-border/80 pt-5">
+                          {policyRows.map((row) => {
+                            const Icon = POLICY_ICON_MAP[row.icon];
+                            return (
+                              <li key={row.id} className="flex gap-3 text-body text-text-secondary">
+                                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                  <Icon size={18} strokeWidth={2} aria-hidden />
+                                </span>
+                                <span className="min-w-0 leading-relaxed">
+                                  <span className="font-medium text-text-primary">{row.title}</span>
+                                  {row.subtitle ? (
+                                    <span className="mt-1 block text-caption text-text-secondary">
+                                      {row.subtitle}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
                     </div>
 
                     {/* Mô tả sản phẩm */}
@@ -686,16 +751,6 @@ const ProductDetailPage = () => {
                       onClick={() => void handleAddCart()}
                     >
                       {!addCartLoading ? t('pdp_add_cart') : null}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="profileOutline"
-                      fullWidth
-                      className="h-11 border-border text-text-primary hover:bg-background"
-                      onClick={() => toast.success(t('pdp_bnpl_toast'))}
-                    >
-                      {t('pdp_bnpl')}
                     </Button>
 
                     {!detailModel.inStock && (

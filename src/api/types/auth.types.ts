@@ -55,6 +55,26 @@ export interface UserAddress {
   isDefault: boolean;
 }
 
+/** `POST /users/addresses` — docs/API_user_address.md */
+export interface CreateAddressRequest {
+  addressLine: string;
+  city: string;
+  state?: string | null;
+  country: string;
+  zipCode?: string | null;
+  isDefault?: boolean;
+}
+
+/** `PUT /users/addresses/{id}` — partial — docs/API_user_address.md */
+export interface UpdateAddressRequest {
+  addressLine?: string;
+  city?: string;
+  state?: string | null;
+  country?: string;
+  zipCode?: string | null;
+  isDefault?: boolean;
+}
+
 export interface UserInfo {
   id: number;
   username: string | null;

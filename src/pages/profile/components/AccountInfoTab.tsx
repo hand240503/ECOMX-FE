@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { useAuth } from '../../../app/auth/AuthProvider';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
@@ -121,6 +122,7 @@ function ContactBlockSimple({
 }
 
 const AccountInfoTab = () => {
+  const { t } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -199,7 +201,7 @@ const AccountInfoTab = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      notify.error('Vui lòng chọn tệp hình ảnh hợp lệ');
+      notify.error(t('profile_notify_image_invalid'));
       event.target.value = '';
       return;
     }
@@ -217,7 +219,7 @@ const AccountInfoTab = () => {
           : undefined;
 
       if (!user?.id) {
-        throw new Error('Không tìm thấy id người dùng.');
+        throw new Error(t('profile_error_user_id'));
       }
 
       await authService.updateProfile({
@@ -230,10 +232,10 @@ const AccountInfoTab = () => {
         avatarFile: selectedAvatarFile
       });
 
-      notify.success('Cập nhật thông tin thành công');
+      notify.success(t('profile_notify_profile_saved'));
       setSelectedAvatarFile(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Lưu thay đổi thất bại.';
+      const message = error instanceof Error ? error.message : t('profile_error_save_failed');
       notify.error(message);
     } finally {
       setIsSaving(false);
@@ -250,7 +252,7 @@ const AccountInfoTab = () => {
       )}
     >
       <section className="min-w-0 space-y-3">
-        <h2 className="text-heading text-text-primary">Thông tin cá nhân</h2>
+        <h2 className="text-heading text-text-primary">{t('profile_section_personal')}</h2>
 
         <ProfileCard className="max-w-xl">
           <form className="space-y-4">
@@ -259,7 +261,7 @@ const AccountInfoTab = () => {
                 {displayedAvatarUrl ? (
                   <img
                     src={displayedAvatarUrl}
-                    alt={fullName || 'Avatar'}
+                    alt={fullName || t('profile_avatar_alt')}
                     className="size-28 rounded-full border-[3px] border-primary-light object-cover"
                   />
                 ) : (
@@ -299,7 +301,7 @@ const AccountInfoTab = () => {
                     'transition-all duration-200 hover:text-text-primary',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30'
                   )}
-                  aria-label="Đổi ảnh đại diện"
+                  aria-label={t('profile_avatar_change_aria')}
                   onClick={() => avatarInputRef.current?.click()}
                 >
                   <svg viewBox="0 0 24 24" fill="none" className="size-3.5">
@@ -317,21 +319,21 @@ const AccountInfoTab = () => {
               <div className="flex min-w-0 flex-1 flex-col gap-3.5">
                 <div className="flex flex-col gap-2 tablet:flex-row tablet:items-center tablet:gap-4">
                   <label htmlFor="account-full-name" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0')}>
-                    Họ và Tên
+                    {t('profile_label_full_name')}
                   </label>
                   <input
                     id="account-full-name"
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nhập họ và tên"
+                    placeholder={t('profile_placeholder_full_name')}
                     className={cn(inputBase, 'tablet:max-w-[260px]')}
                   />
                 </div>
 
                 <div className="flex flex-col gap-2 tablet:flex-row tablet:items-start tablet:gap-4">
                   <label htmlFor="account-user-name" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0 tablet:pt-2.5')}>
-                    Tên đăng nhập
+                    {t('profile_label_username')}
                   </label>
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5 tablet:max-w-[260px]">
                     <input
@@ -339,23 +341,23 @@ const AccountInfoTab = () => {
                       type="text"
                       value={userName}
                       readOnly
-                      placeholder="Tên đăng nhập"
+                      placeholder={t('profile_placeholder_username')}
                       className={cn(inputBase, 'bg-background text-text-secondary')}
                     />
-                    <p className="m-0 text-caption text-text-secondary">Username chỉ có thể thay đổi một lần.</p>
+                    <p className="m-0 text-caption text-text-secondary">{t('profile_hint_username_once')}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2 tablet:flex-row tablet:items-center tablet:gap-4">
                   <label htmlFor="account-display-name" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0')}>
-                    Tên hiển thị
+                    {t('profile_label_display_name')}
                   </label>
                   <input
                     id="account-display-name"
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Nhập tên hiển thị"
+                    placeholder={t('profile_placeholder_display_name')}
                     className={cn(inputBase, 'tablet:max-w-[260px]')}
                   />
                 </div>
@@ -364,7 +366,7 @@ const AccountInfoTab = () => {
 
             <div className="flex flex-col gap-2 tablet:flex-row tablet:items-center tablet:gap-4">
               <label htmlFor="account-birth-day" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0')}>
-                Ngày sinh
+                {t('profile_label_birthday')}
               </label>
               <div className="grid min-w-0 flex-1 grid-cols-3 gap-2 tablet:max-w-none">
                 <select
@@ -374,7 +376,7 @@ const AccountInfoTab = () => {
                   className={selectClass}
                 >
                   <option value="" disabled>
-                    Ngày
+                    {t('profile_select_day')}
                   </option>
                   {Array.from({ length: 31 }, (_, index) => (
                     <option key={`day-${index + 1}`} value={index + 1}>
@@ -384,7 +386,7 @@ const AccountInfoTab = () => {
                 </select>
                 <select value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)} className={selectClass}>
                   <option value="" disabled>
-                    Tháng
+                    {t('profile_select_month')}
                   </option>
                   {Array.from({ length: 12 }, (_, index) => (
                     <option key={`month-${index + 1}`} value={index + 1}>
@@ -394,7 +396,7 @@ const AccountInfoTab = () => {
                 </select>
                 <select value={birthYear} onChange={(e) => setBirthYear(e.target.value)} className={selectClass}>
                   <option value="" disabled>
-                    Năm
+                    {t('profile_select_year')}
                   </option>
                   {Array.from({ length: 101 }, (_, index) => {
                     const year = new Date().getFullYear() - index;
@@ -414,7 +416,7 @@ const AccountInfoTab = () => {
               aria-labelledby="account-gender-label"
             >
               <span id="account-gender-label" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0')}>
-                Giới tính
+                {t('profile_label_gender')}
               </span>
               <div className="flex flex-wrap items-center gap-4 tablet:gap-6">
                 <label className="inline-flex cursor-pointer items-center gap-2 text-body text-text-primary">
@@ -426,7 +428,7 @@ const AccountInfoTab = () => {
                     onChange={() => setGender('male')}
                     className="size-4 accent-primary"
                   />
-                  Nam
+                  {t('profile_gender_male')}
                 </label>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-body text-text-primary">
                   <input
@@ -437,7 +439,7 @@ const AccountInfoTab = () => {
                     onChange={() => setGender('female')}
                     className="size-4 accent-primary"
                   />
-                  Nữ
+                  {t('profile_gender_female')}
                 </label>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-body text-text-primary">
                   <input
@@ -448,14 +450,14 @@ const AccountInfoTab = () => {
                     onChange={() => setGender('other')}
                     className="size-4 accent-primary"
                   />
-                  Khác
+                  {t('profile_gender_other')}
                 </label>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 tablet:flex-row tablet:items-center tablet:gap-4">
               <label htmlFor="account-country" className={cn(labelBase, 'tablet:w-[118px] tablet:shrink-0')}>
-                Quốc tịch
+                {t('profile_label_nationality')}
               </label>
               <select
                 id="account-country"
@@ -464,12 +466,12 @@ const AccountInfoTab = () => {
                 className={cn(selectClass, 'tablet:max-w-[260px]')}
               >
                 <option value="" disabled>
-                  Chọn quốc tịch
+                  {t('profile_nationality_placeholder')}
                 </option>
-                <option value="vn">Việt Nam</option>
-                <option value="us">United States</option>
-                <option value="jp">Japan</option>
-                <option value="kr">Korea</option>
+                <option value="vn">{t('profile_country_vn')}</option>
+                <option value="us">{t('profile_country_us')}</option>
+                <option value="jp">{t('profile_country_jp')}</option>
+                <option value="kr">{t('profile_country_kr')}</option>
               </select>
             </div>
 
@@ -480,7 +482,7 @@ const AccountInfoTab = () => {
               onClick={handleSave}
               className="mt-2 w-full tablet:ml-[calc(118px+1rem)] tablet:w-auto tablet:min-w-[180px]"
             >
-              {isSaving ? null : 'Lưu thay đổi'}
+              {isSaving ? null : t('profile_btn_save_changes')}
             </Button>
           </form>
         </ProfileCard>
@@ -494,46 +496,50 @@ const AccountInfoTab = () => {
       />
 
       <section className="min-w-0 space-y-4">
-        <h2 className="text-heading text-text-primary">Số điện thoại và Email</h2>
+        <h2 className="text-heading text-text-primary">{t('profile_section_phone_email')}</h2>
 
         <ProfileCard>
           <ContactBlock
             icon={phoneIcon}
-            title="Số điện thoại"
-            value={phone || 'Thêm số điện thoại'}
-            actionLabel="Cập nhật"
+            title={t('profile_label_phone')}
+            value={phone || t('profile_value_add_phone')}
+            actionLabel={t('profile_btn_update')}
             onAction={() => navigate('/account/edit/phone')}
           />
           <ContactBlock
             icon={emailIcon}
-            title="Địa chỉ email"
-            value={email || 'Thêm địa chỉ email'}
-            actionLabel="Cập nhật"
+            title={t('profile_label_email')}
+            value={email || t('profile_value_add_email')}
+            actionLabel={t('profile_btn_update')}
             onAction={() => navigate('/account/edit/email')}
           />
         </ProfileCard>
 
         <ProfileCard>
-          <h3 className="mb-3 mt-0 text-title text-text-secondary">Bảo mật</h3>
+          <h3 className="mb-3 mt-0 text-title text-text-secondary">{t('profile_section_security')}</h3>
           <ContactBlockSimple
             icon={lockIcon}
-            label="Thiết lập mật khẩu"
-            actionLabel="Cập nhật"
+            label={t('profile_label_set_password')}
+            actionLabel={t('profile_btn_update')}
             onAction={() => navigate('/account/edit/pass')}
           />
           <ContactBlockSimple
             icon={securityIcon}
-            label="Quên mật khẩu"
-            actionLabel="Khôi phục"
+            label={t('profile_label_forgot_password_link')}
+            actionLabel={t('profile_btn_restore')}
             onAction={() => navigate('/forgot-password')}
           />
-          <ContactBlockSimple icon={trashIcon} label="Yêu cầu xóa tài khoản" actionLabel="Yêu cầu" />
+          <ContactBlockSimple
+            icon={trashIcon}
+            label={t('profile_label_delete_account')}
+            actionLabel={t('profile_btn_request')}
+          />
         </ProfileCard>
 
         <ProfileCard>
-          <h3 className="mb-3 mt-0 text-title text-text-secondary">Liên kết mạng xã hội</h3>
-          <ContactBlockSimple icon={facebookIcon} label="Facebook" actionLabel="Liên kết" />
-          <ContactBlockSimple icon={googleIcon} label="Google" actionLabel="Liên kết" />
+          <h3 className="mb-3 mt-0 text-title text-text-secondary">{t('profile_section_social')}</h3>
+          <ContactBlockSimple icon={facebookIcon} label={t('profile_link_facebook')} actionLabel={t('profile_link_connect')} />
+          <ContactBlockSimple icon={googleIcon} label={t('profile_link_google')} actionLabel={t('profile_link_connect')} />
         </ProfileCard>
       </section>
     </div>

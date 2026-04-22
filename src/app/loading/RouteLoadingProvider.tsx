@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 
 interface RouteLoadingContextValue {
   isRouteLoading: boolean;
+  /** Thanh trên cùng: chuyển trang hoặc tải chặn (vd. bootstrap trang chủ). */
+  isTopLoadingBarVisible: boolean;
+  setPageBlockingLoading: (loading: boolean) => void;
   startRouteTransition: (action: () => void, delayMs?: number) => void;
 }
 
@@ -14,7 +17,12 @@ interface RouteLoadingProviderProps {
 
 export const RouteLoadingProvider = ({ children }: RouteLoadingProviderProps) => {
   const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const [pageBlockingLoading, setPageBlockingLoadingState] = useState(false);
   const timerRef = useRef<number | null>(null);
+
+  const setPageBlockingLoading = useCallback((loading: boolean) => {
+    setPageBlockingLoadingState(loading);
+  }, []);
 
   const startRouteTransition = useCallback((action: () => void, delayMs = 450) => {
     if (timerRef.current !== null) {
@@ -40,9 +48,11 @@ export const RouteLoadingProvider = ({ children }: RouteLoadingProviderProps) =>
   const value = useMemo<RouteLoadingContextValue>(
     () => ({
       isRouteLoading,
+      isTopLoadingBarVisible: isRouteLoading || pageBlockingLoading,
+      setPageBlockingLoading,
       startRouteTransition
     }),
-    [isRouteLoading, startRouteTransition]
+    [isRouteLoading, pageBlockingLoading, setPageBlockingLoading, startRouteTransition]
   );
 
   return <RouteLoadingContext.Provider value={value}>{children}</RouteLoadingContext.Provider>;

@@ -26,4 +26,22 @@ export const recommendationService = {
     });
     return Array.isArray(data) ? data : [];
   },
+
+  /**
+   * Mảng thô `ProductFullResponse[]` (không `APIResponse`) — tương tự theo 1 sản phẩm nguồn.
+   * @see docs/API_recommendation_item_hybrid_FE.md
+   */
+  async getItemHybridSimilar(
+    productId: number,
+    options?: { limit?: number; signal?: AbortSignal }
+  ): Promise<ProductFullResponse[]> {
+    const { data } = await axiosInstance.get<ProductFullResponse[]>(
+      API_ENDPOINTS.RECOMMENDATIONS.ITEM_HYBRID(productId),
+      {
+        params: { limit: options?.limit ?? 10 },
+        signal: options?.signal,
+      }
+    );
+    return Array.isArray(data) ? data : [];
+  },
 };

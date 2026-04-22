@@ -1,14 +1,25 @@
+import { useEffect } from 'react';
 import MainHeader from '../layout/header/MainHeader';
 import MainFooter from '../layout/footer/MainFooter';
 import Sidebar from '../components/home/Sidebar';
 import BannerSlider from '../components/home/BannerSlider';
 import QuickLinks from '../components/home/QuickLinks';
 import ProductFeed from '../components/home/ProductFeed';
+import { useRouteLoadingState } from '../app/loading/RouteLoadingProvider';
+import { useHomeBootstrap } from '../hooks/useHomeBootstrap';
 
 const HomePage = () => {
+  const { isBootstrapping } = useHomeBootstrap();
+  const { setPageBlockingLoading } = useRouteLoadingState();
+
+  useEffect(() => {
+    setPageBlockingLoading(isBootstrapping);
+    return () => setPageBlockingLoading(false);
+  }, [isBootstrapping, setPageBlockingLoading]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <MainHeader cartCount={5} />
+      <MainHeader />
 
       <main className="flex-1 py-4">
         <div className="mx-auto w-full max-w-container px-4 tablet:px-6">

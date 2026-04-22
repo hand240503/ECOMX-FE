@@ -22,6 +22,18 @@ export interface ProductPrice {
   unitRatio: number;
 }
 
+/** `docs/API_product_policies_FE.md` — phần tử trong `policies` */
+export interface PolicyResponse {
+  id: number;
+  code: string | null;
+  name: string;
+  policyType: string;
+  numericValue: number | null;
+  textValue: string | null;
+  detail: string | null;
+  active: boolean | null;
+}
+
 /**
  * Theo api_home.md; backend có thể bổ sung thêm field ảnh — resolve trong getProductImageUrl.
  */
@@ -47,6 +59,8 @@ export interface ProductFullResponse {
   mainImageUrl?: string | null;
   imageUrl?: string | null;
   coverImageUrl?: string | null;
+  /** Chỉ có trên PDP / detail API — list/search có thể không gửi field (docs/API_product_policies_FE.md) */
+  policies?: PolicyResponse[] | null;
 }
 
 /** `GET /products/{id}/detail` — docs/product_api.md */

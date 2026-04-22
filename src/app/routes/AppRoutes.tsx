@@ -12,11 +12,21 @@ import AccountInfoTab from '../../pages/profile/components/AccountInfoTab';
 import EditPasswordTab from '../../pages/profile/components/EditPasswordTab';
 import EditPhoneTab from '../../pages/profile/components/EditPhoneTab';
 import EditEmailTab from '../../pages/profile/components/EditEmailTab';
+import AddressBookTab from '../../pages/profile/components/AddressBookTab';
+import AddUserAddressTab from '../../pages/profile/components/AddUserAddressTab';
+import EditUserAddressTab from '../../pages/profile/components/EditUserAddressTab';
 import ForgotPasswordPage from '../../pages/auth/ForgotPasswordPage';
 import VerifyForgotOtpPage from '../../pages/auth/VerifyForgotOtpPage';
 import ResetPasswordPage from '../../pages/auth/ResetPasswordPage';
 import ProductDetailPage from '../../pages/product/ProductDetailPage';
+import CartPage from '../../pages/CartPage';
 import NotFoundPage from '../../pages/NotFoundPage';
+import { useI18n } from '../../i18n/I18nProvider';
+
+function ProfileTabPlaceholder({ messageKey }: { messageKey: string }) {
+  const { t } = useI18n();
+  return <p className="text-gray-600">{t(messageKey)}</p>;
+}
 
 const AppRoutes = () => {
   return (
@@ -30,6 +40,8 @@ const AppRoutes = () => {
         <Route path="/products/category/:categoryId" element={<CategoryProductsPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/products" element={<CategoryProductsPage />} />
+
+        <Route path="/cart" element={<CartPage />} />
 
         <Route path="/404" element={<NotFoundPage />} />
 
@@ -67,11 +79,16 @@ const AppRoutes = () => {
           <Route path="edit/pass" element={<EditPasswordTab />} />
           <Route path="edit/phone" element={<EditPhoneTab />} />
           <Route path="edit/email" element={<EditEmailTab />} />
-          <Route path="notifications" element={<p className="text-gray-600">Danh sách thông báo của bạn.</p>} />
-          <Route path="orders" element={<p className="text-gray-600">Lịch sử và quản lý đơn hàng của bạn.</p>} />
-          <Route path="returns" element={<p className="text-gray-600">Yêu cầu đổi trả hàng hóa.</p>} />
-          <Route path="address" element={<p className="text-gray-600">Danh sách các địa chỉ nhận hàng.</p>} />
-          <Route path="payment" element={<p className="text-gray-600">Các phương thức thanh toán đã lưu.</p>} />
+          <Route
+            path="notifications"
+            element={<ProfileTabPlaceholder messageKey="profile_placeholder_notifications" />}
+          />
+          <Route path="orders" element={<ProfileTabPlaceholder messageKey="profile_placeholder_orders" />} />
+          <Route path="returns" element={<ProfileTabPlaceholder messageKey="profile_placeholder_returns" />} />
+          <Route path="address" element={<AddressBookTab />} />
+          <Route path="address/new" element={<AddUserAddressTab />} />
+          <Route path="address/:addressId/edit" element={<EditUserAddressTab />} />
+          <Route path="payment" element={<ProfileTabPlaceholder messageKey="profile_placeholder_payment" />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

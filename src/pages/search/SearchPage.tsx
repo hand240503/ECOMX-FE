@@ -187,7 +187,7 @@ const SearchPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <MainHeader cartCount={5} />
+      <MainHeader />
 
       {q.length > 0 && (
         <div className="border-b border-border bg-surface py-3">

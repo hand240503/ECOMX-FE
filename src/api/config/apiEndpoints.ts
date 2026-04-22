@@ -15,6 +15,10 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: '/users/profile',
     CHANGE_PASSWORD: '/users/profile/password',
     CHANGE_CONTACT: '/users/profile/contact',
+    /** @see docs/API_user_address.md */
+    ADDRESSES: '/users/addresses',
+    ADDRESS_BY_ID: (id: number | string) => `/users/addresses/${id}`,
+    ADDRESS_SET_DEFAULT: (id: number | string) => `/users/addresses/${id}/default`,
   },
 
   PRODUCT: {
@@ -29,11 +33,21 @@ export const API_ENDPOINTS = {
      * JWT. Chi tiết: docs/product-by-category.md — bước 4 luồng: docs/home-category-product-list-flow.md
      */
     BY_CATEGORY: (categoryId: number | string) => `/products/category/${categoryId}`,
+    /**
+     * `POST` body `{ productIds: number[] }` — tối đa 200 id; trả về `ProductFullResponse[]` theo thứ tự gửi.
+     * @see docs/API_products_by_ids_FE.md
+     */
+    BY_IDS: '/products/by-ids',
   },
 
   RECOMMENDATIONS: {
     /** Trả JSON array thẳng (không bọc APIResponse) — xem docs/api_home.md */
     HOME: '/recommendations/home',
+    /**
+     * `GET` — `ProductFullResponse[]` (không envelope). Gợi ý theo 1 sản phẩm nguồn (CF+content hybrid).
+     * @see docs/API_recommendation_item_hybrid_FE.md
+     */
+    ITEM_HYBRID: (productId: number | string) => `/recommendations/item-hybrid/${productId}`,
   },
 
   /**

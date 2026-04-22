@@ -1,3 +1,4 @@
+export { addressService } from './addressService';
 export { authService } from './authService';
 export { categoryService } from './categoryService';
 export { productService } from './productService';

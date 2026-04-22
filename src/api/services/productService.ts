@@ -22,7 +22,52 @@ export class ProductNotFoundError extends Error {
   }
 }
 
+const BY_IDS_MAX = 200;
+
+/**
+ * Một lần (`POST /products/by-ids`) với tối đa 200 id; nhiều hơn thì tự tách mảng.
+ * Thứ tự phần tử theo từng lô, lần lượt nối kết quả từ server (theo từng lô theo tài liệu).
+ * @see docs/API_products_by_ids_FE.md
+ */
+export async function getProductsByIds(
+  productIds: number[],
+  options?: { signal?: AbortSignal }
+): Promise<ProductFullResponse[]> {
+  const { signal } = options ?? {};
+  if (productIds.length === 0) return [];
+
+  const chunks: number[][] = [];
+  for (let i = 0; i < productIds.length; i += BY_IDS_MAX) {
+    chunks.push(productIds.slice(i, i + BY_IDS_MAX));
+  }
+
+  const all: ProductFullResponse[] = [];
+  for (const chunk of chunks) {
+    const { data } = await axiosInstance.post<ApiResponse<ProductFullResponse[]>>(
+      API_ENDPOINTS.PRODUCT.BY_IDS,
+      { productIds: chunk },
+      { signal }
+    );
+
+    if (data.success === false) {
+      throw new Error(
+        typeof data.message === 'string' && data.message.trim() !== '' ? data.message.trim() : 'getProductsByIds failed'
+      );
+    }
+
+    const part = Array.isArray(data.data) ? data.data : [];
+    all.push(...part);
+  }
+  return all;
+}
+
 export const productService = {
+  /**
+   * `POST /products/by-ids` — mảng `ProductFullResponse` theo thứ tự `productIds` (bỏ id không tồn tại).
+   * @see docs/API_products_by_ids_FE.md
+   */
+  getByIds: getProductsByIds,
+
   /**
    * `GET /products/{id}/detail` — product + recommendations.
    * @see docs/product_api.md

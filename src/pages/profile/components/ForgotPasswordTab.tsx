@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { authService } from '../../../api/services';
 import { notify } from '../../../utils/notify';
 import { Button } from '../../../components/ui';
@@ -7,6 +8,7 @@ import { authInputClass } from '../../../lib/authFormClasses';
 import { cn } from '../../../lib/cn';
 
 export default function ForgotPasswordTab() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -30,16 +32,16 @@ export default function ForgotPasswordTab() {
   const handleSubmit = async () => {
     if (!isConfirmStep) {
       const nextEmail = email.trim();
-      if (!nextEmail) return notify.error('Vui lòng nhập email.');
-      if (!isValidEmail(nextEmail)) return notify.error('Email không hợp lệ.');
+      if (!nextEmail) return notify.error(t('profile_forgot_error_email_empty'));
+      if (!isValidEmail(nextEmail)) return notify.error(t('profile_forgot_error_email_invalid'));
 
       setIsSaving(true);
       try {
         const message = await authService.forgotPassword({ email: nextEmail });
-        notify.success(message || 'Đã gửi yêu cầu khôi phục mật khẩu.');
+        notify.success(message || t('profile_forgot_success_sent'));
         setIsConfirmStep(true);
       } catch (error) {
-        notify.error(error instanceof Error ? error.message : 'Gửi yêu cầu thất bại.');
+        notify.error(error instanceof Error ? error.message : t('profile_forgot_error_send_failed'));
       } finally {
         setIsSaving(false);
       }
@@ -49,9 +51,9 @@ export default function ForgotPasswordTab() {
     const token = code.trim();
     const password = newPassword.trim();
 
-    if (!token) return notify.error('Vui lòng nhập mã xác nhận.');
+    if (!token) return notify.error(t('profile_forgot_error_code_empty'));
     if (!isValidPassword(password)) {
-      return notify.error('Mật khẩu mới phải 8-32 ký tự, gồm chữ và số.');
+      return notify.error(t('profile_forgot_error_password_rules'));
     }
 
     setIsSaving(true);
@@ -61,10 +63,10 @@ export default function ForgotPasswordTab() {
         newPassword: password,
         confirmPassword: password
       });
-      notify.success(message || 'Đặt lại mật khẩu thành công.');
+      notify.success(message || t('profile_forgot_success_reset'));
       navigate('/login');
     } catch (error) {
-      notify.error(error instanceof Error ? error.message : 'Đặt lại mật khẩu thất bại.');
+      notify.error(error instanceof Error ? error.message : t('profile_forgot_error_reset_failed'));
     } finally {
       setIsSaving(false);
     }
@@ -79,26 +81,24 @@ export default function ForgotPasswordTab() {
         )}
       >
         <h2 className="text-heading text-text-primary">
-          {isConfirmStep ? 'Xác nhận đặt lại mật khẩu' : 'Quên mật khẩu'}
+          {isConfirmStep ? t('profile_forgot_title_confirm') : t('profile_forgot_title')}
         </h2>
         <p className="mt-1 text-body text-text-secondary">
-          {isConfirmStep
-            ? 'Vui lòng nhập mã xác nhận đã được gửi đến email hoặc số điện thoại của bạn.'
-            : 'Vui lòng nhập Email hoặc số điện thoại bạn đã đăng ký để tiến hành đổi mật khẩu.'}
+          {isConfirmStep ? t('profile_forgot_desc_confirm') : t('profile_forgot_desc_enter')}
         </p>
 
         <div className="mt-5 space-y-4">
           {!isConfirmStep ? (
             <div>
               <label htmlFor="forgot-email" className="mb-2 block text-caption font-semibold text-text-primary">
-                Địa chỉ email
+                {t('profile_forgot_label_email')}
               </label>
               <input
                 id="forgot-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Nhập địa chỉ email"
+                placeholder={t('profile_forgot_placeholder_email')}
                 className={authInputClass(false, isSaving)}
               />
             </div>
@@ -106,28 +106,28 @@ export default function ForgotPasswordTab() {
             <>
               <div>
                 <label htmlFor="forgot-code" className="mb-2 block text-caption font-semibold text-text-primary">
-                  Mã xác nhận
+                  {t('profile_forgot_label_code')}
                 </label>
                 <input
                   id="forgot-code"
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Nhập mã xác nhận"
+                  placeholder={t('profile_forgot_placeholder_code')}
                   className={authInputClass(false, isSaving)}
                 />
               </div>
 
               <div>
                 <label htmlFor="forgot-password" className="mb-2 block text-caption font-semibold text-text-primary">
-                  Mật khẩu mới
+                  {t('profile_forgot_label_new_password')}
                 </label>
                 <input
                   id="forgot-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu mới"
+                  placeholder={t('profile_forgot_placeholder_new_password')}
                   className={authInputClass(false, isSaving)}
                 />
               </div>
@@ -146,7 +146,7 @@ export default function ForgotPasswordTab() {
                 setIsConfirmStep(false);
               }}
             >
-              Quay lại
+              {t('btn_back')}
             </Button>
           ) : null}
           <Button
@@ -157,7 +157,7 @@ export default function ForgotPasswordTab() {
             disabled={!canSubmit}
             loading={isSaving}
           >
-            {isSaving ? null : isConfirmStep ? 'Xác nhận' : 'Gửi mã'}
+            {isSaving ? null : isConfirmStep ? t('btn_confirm') : t('profile_forgot_btn_send')}
           </Button>
         </div>
       </div>

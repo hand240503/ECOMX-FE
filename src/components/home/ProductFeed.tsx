@@ -4,13 +4,30 @@ import ProductCard from '../product/ProductCard';
 import ProductSkeleton from '../product/ProductSkeleton';
 import { useI18n } from '../../i18n/I18nProvider';
 import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
-import { useHomeRecommendations } from '../../hooks/useHomeRecommendations';
+import { useHomeRecommendations, useHomeRecommendationsSnapshot } from '../../hooks/useHomeRecommendations';
 import { Button } from '../ui/Button';
 
 const SKELETON_COUNT = 12;
 
-const ProductFeed = () => {
+type ProductFeedProps = {
+  /** Tiêu đề khối (mặc định: deal trang chủ) */
+  title?: string;
+  /**
+   * Giới hạn số sản phẩm (1 lần gọi API, không "Xem thêm").
+   * Dùng trên trang giỏ trống: 10 sản phẩm + nút "Xem tất cả" (chưa nối route).
+   */
+  maxItems?: number;
+};
+
+const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
   const { t } = useI18n();
+  const heading = title ?? t('home_deal_title');
+  const limited = maxItems != null && maxItems > 0;
+  const limit = limited ? maxItems : undefined;
+
+  const infiniteQuery = useHomeRecommendations({ enabled: !limited });
+  const snapshotQuery = useHomeRecommendationsSnapshot(limited && limit != null ? limit : 0);
+
   const {
     products,
     isPending,
@@ -20,9 +37,25 @@ const ProductFeed = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useHomeRecommendations();
+  } = limited
+    ? {
+        products: snapshotQuery.data ?? [],
+        isPending: snapshotQuery.isPending,
+        isError: snapshotQuery.isError,
+        error: snapshotQuery.error,
+        refetch: snapshotQuery.refetch,
+        fetchNextPage: async () => {
+          /* no-op */
+        },
+        hasNextPage: false,
+        isFetchingNextPage: false,
+      }
+    : infiniteQuery;
 
-  const items = useMemo(() => products.map(mapProductFullToCard), [products]);
+  const items = useMemo(
+    () => (limited && limit != null ? products.slice(0, limit) : products).map(mapProductFullToCard),
+    [limited, limit, products]
+  );
 
   const showInitialSkeleton = isPending;
 
@@ -37,10 +70,27 @@ const ProductFeed = () => {
     return t('common_unexpected_error');
   }, [error, t]);
 
+  const skeletonCount = limited && maxItems != null ? Math.min(maxItems, 12) : SKELETON_COUNT;
+
   return (
     <section className="mt-4 rounded-md border border-border bg-surface shadow-header">
-      <div className="border-b border-border p-4">
-        <h2 className="text-heading text-text-primary">{t('home_deal_title')}</h2>
+      <div
+        className={`border-b border-border p-4 ${limited ? 'flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between' : ''}`}
+      >
+        <h2 className="text-heading text-text-primary">{heading}</h2>
+        {limited ? (
+          <Button
+            type="button"
+            variant="profileOutline"
+            size="sm"
+            className="shrink-0 self-start tablet:self-auto"
+            onClick={() => {
+              /* TODO: tích hợp màn hình / route xem toàn bộ gợi ý */
+            }}
+          >
+            {t('cart_recommendations_view_all')}
+          </Button>
+        ) : null}
       </div>
 
       {isError && errorDetail && (
@@ -55,7 +105,7 @@ const ProductFeed = () => {
 
       {!isError && showInitialSkeleton && (
         <div className="grid grid-cols-2 gap-3 p-3 tablet:grid-cols-3 tablet:gap-4 desktop:grid-cols-4 wide:grid-cols-5">
-          {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
+          {Array.from({ length: skeletonCount }).map((_, index) => (
             <ProductSkeleton key={`product-skeleton-${index}`} />
           ))}
         </div>
@@ -85,7 +135,7 @@ const ProductFeed = () => {
         </div>
       )}
 
-      {!isError && !showInitialSkeleton && hasNextPage && (
+      {!isError && !showInitialSkeleton && !limited && hasNextPage && (
         <div className="flex justify-center py-6">
           <Button
             type="button"

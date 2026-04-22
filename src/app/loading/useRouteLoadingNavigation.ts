@@ -10,7 +10,7 @@ interface NavigateWithLoadingOptions extends NavigateOptions {
 export const useRouteLoadingNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isRouteLoading, startRouteTransition } = useRouteLoadingState();
+  const { isRouteLoading, isTopLoadingBarVisible, startRouteTransition } = useRouteLoadingState();
 
   const navigateWithLoading = useCallback(
     (to: To, options?: NavigateWithLoadingOptions) => {
@@ -34,7 +34,9 @@ export const useRouteLoadingNavigation = () => {
 
   return {
     isRouteLoading,
-    navigateWithLoading
+    isTopLoadingBarVisible,
+    navigateWithLoading,
+    startRouteTransition
   };
 };
 

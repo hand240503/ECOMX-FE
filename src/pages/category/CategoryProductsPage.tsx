@@ -189,7 +189,7 @@ const CategoryProductsPage = () => {
   if (!categoryParam) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
-        <MainHeader cartCount={5} />
+        <MainHeader />
         <main className="flex-1 py-6">
           <div className="mx-auto max-w-container px-4 tablet:px-6">
             <p className="text-body text-text-primary">{t('category_missing_param')}</p>
@@ -208,7 +208,7 @@ const CategoryProductsPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <MainHeader cartCount={5} />
+      <MainHeader />
 
       <div className="border-b border-border bg-surface py-3 shadow-header">
         <div className="mx-auto max-w-container px-4 tablet:px-6">
