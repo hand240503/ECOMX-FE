@@ -65,4 +65,30 @@ export const API_ENDPOINTS = {
   SEARCH: {
     TRENDING: '/search/trending',
   },
+
+  /** @see docs/API_add_order.md */
+  ORDER: {
+    PAYMENT_METHODS: '/payment-methods',
+    CREATE: '/orders',
+    LIST: '/orders',
+    BY_ID: (id: number | string) => `/orders/${id}`,
+    CANCEL: (id: number | string) => `/orders/${id}/cancel`,
+    RETURN_REQUEST: (id: number | string) => `/orders/${id}/return-request`,
+    /** @see docs/VNPAY_CHECKOUT_SESSIONS_FE_GUIDE.md */
+    VNPAY_PENDING: (transactionPublicId: string) => `/orders/vnpay-pending/${transactionPublicId}`,
+    VNPAY_PENDING_TRANSACTION_STATUS: (transactionPublicId: string) =>
+      `/orders/vnpay-pending/${transactionPublicId}/transaction-status`,
+    VNPAY_ABANDON: (transactionPublicId: string) => `/orders/vnpay-pending/${transactionPublicId}/abandon`,
+    /**
+     * Dev: mô phỏng IPN thành công khi IPN không tới localhost — JWT, không body; BE bật `vnpay.dev-simulate-success-enabled`.
+     * @see docs/VNPAY_CHECKOUT_SESSIONS_FE_GUIDE.md §4
+     */
+    VNPAY_DEV_SIMULATE_SUCCESS: (transactionPublicId: string) =>
+      `/orders/vnpay-pending/${transactionPublicId}/dev-simulate-success`,
+  },
+
+  VNPAY: {
+    CHECKOUT_SESSION_PAYMENT_URL: (checkoutSessionId: number | string) =>
+      `/payment/vnpay/checkout-sessions/${checkoutSessionId}/payment-url`,
+  },
 };

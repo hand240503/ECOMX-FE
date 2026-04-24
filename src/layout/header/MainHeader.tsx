@@ -462,7 +462,7 @@ const MainHeader = () => {
                           <button
                             type="button"
                             onClick={handleLogout}
-                            className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                            className="w-full px-4 py-2.5 text-left text-sm text-danger hover:bg-red-50"
                           >
                             {t('header_logout')}
                           </button>

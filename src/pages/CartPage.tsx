@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Ticket, Truck } from 'lucide-react';
 import MainHeader from '../layout/header/MainHeader';
@@ -15,6 +15,8 @@ import { isProductFreeship } from '../lib/categoryProductUtils';
 import { formatPrice } from '../lib/formatPrice';
 import { formatCartLineAddedAt } from '../lib/formatCartLineDate';
 import { cn } from '../lib/cn';
+import { saveCheckoutLineKeys } from '../lib/checkoutIntent';
+import { useAuth } from '../app/auth/AuthProvider';
 import type { Lang } from '../utils/i18n';
 import type { ProductFullResponse } from '../api/types/product.types';
 
@@ -51,7 +53,7 @@ function CartLineDesktop(props: RowInnerProps) {
       <label className="flex h-4 cursor-pointer items-center justify-center">
         <input
           type="checkbox"
-          className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-[#ee4d2d] accent-[#ee4d2d]"
+          className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-primary accent-primary"
           checked={checked}
           onChange={(e) => onToggle(k, e.target.checked)}
           aria-label={t('cart_line_checkbox_aria')}
@@ -93,7 +95,7 @@ function CartLineDesktop(props: RowInnerProps) {
       </div>
 
       <div className="flex min-h-8 items-center justify-center sm:justify-self-center">
-        <span className="text-right text-sm text-gray-800">{formatPrice(line.unitPrice)}</span>
+        <span className="text-right text-sm text-text-primary">{formatPrice(line.unitPrice)}</span>
       </div>
 
       <div className="flex min-h-8 items-center justify-center sm:justify-self-center">
@@ -104,7 +106,7 @@ function CartLineDesktop(props: RowInnerProps) {
         className={cn(
           'flex min-h-8 items-center justify-center sm:justify-self-center',
           'text-right text-sm font-medium',
-          checked ? 'text-[#ee4d2d]' : 'text-gray-500'
+          checked ? 'text-text-primary' : 'text-gray-500'
         )}
       >
         {formatPrice(line.unitPrice * line.quantity)}
@@ -142,7 +144,7 @@ function CartLineMobile(props: RowInnerProps) {
         <label className="mt-0.5 flex h-4 shrink-0 cursor-pointer items-center">
           <input
             type="checkbox"
-            className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-[#ee4d2d] accent-[#ee4d2d]"
+            className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-primary accent-primary"
             checked={checked}
             onChange={(e) => onToggle(k, e.target.checked)}
             aria-label={t('cart_line_checkbox_aria')}
@@ -181,7 +183,7 @@ function CartLineMobile(props: RowInnerProps) {
       <div className="mt-3 flex flex-col gap-2.5 pl-6 text-sm">
         <div className="flex min-h-8 items-center justify-between text-gray-600">
           <span className="flex min-h-8 items-center">{t('cart_table_unit_price')}</span>
-          <span className="flex min-h-8 items-center text-gray-900">{formatPrice(line.unitPrice)}</span>
+          <span className="flex min-h-8 items-center text-text-primary">{formatPrice(line.unitPrice)}</span>
         </div>
         <div className="flex min-h-8 items-center justify-between">
           <span className="flex items-center text-gray-600">{t('cart_table_quantity')}</span>
@@ -194,7 +196,7 @@ function CartLineMobile(props: RowInnerProps) {
           <span
             className={cn(
               'flex items-center text-base font-medium',
-              checked ? 'text-[#ee4d2d]' : 'text-gray-500'
+              checked ? 'text-text-primary' : 'text-gray-500'
             )}
           >
             {formatPrice(line.unitPrice * line.quantity)}
@@ -222,6 +224,8 @@ function CartLineMobile(props: RowInnerProps) {
 
 export default function CartPage() {
   const { t, lang } = useI18n();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { lines, setQuantity, removeItem } = useCart();
   const { byId } = useEcomxCartProductDetails(lines);
   const isEmpty = lines.length === 0;
@@ -362,7 +366,7 @@ export default function CartPage() {
                   <input
                     ref={masterHeaderRef}
                     type="checkbox"
-                    className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-[#ee4d2d] accent-[#ee4d2d]"
+                    className="h-4 w-4 cursor-pointer rounded border-[#c8c8c8] text-primary accent-primary"
                     checked={isAllSelected}
                     onChange={onMasterInput}
                     aria-label={t('cart_table_select_all_aria')}
@@ -432,7 +436,7 @@ export default function CartPage() {
                   <span
                     className={cn(
                       'text-lg font-bold',
-                      selectedSubtotal === 0 ? 'text-gray-400' : 'text-[#ee4d2d]'
+                      selectedSubtotal === 0 ? 'text-gray-400' : 'text-primary'
                     )}
                   >
                     {formatPrice(selectedSubtotal)}
@@ -442,10 +446,17 @@ export default function CartPage() {
                   type="button"
                   variant="profilePrimary"
                   size="lg"
-                  className="h-12 w-full max-w-md self-end rounded border-0 bg-[#ee4d2d] text-base font-medium text-white shadow-sm hover:brightness-105 sm:self-end"
+                  className="h-12 w-full max-w-md self-end rounded border-0 bg-primary text-base font-medium text-white shadow-sm hover:brightness-105 sm:self-end"
                   disabled={selectedSubtotal === 0}
                   onClick={() => {
-                    /* Thanh toán khi có route */
+                    if (selectedSubtotal === 0) return;
+                    const keys = Array.from(selectedKeys);
+                    if (!isAuthenticated) {
+                      saveCheckoutLineKeys(keys);
+                      navigate('/login', { state: { from: '/checkout' } });
+                      return;
+                    }
+                    navigate('/checkout', { state: { keys } });
                   }}
                 >
                   {t('cart_buy')}

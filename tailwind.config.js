@@ -26,7 +26,10 @@ export default {
           dark: '#FBC02D',
         },
         success: '#27AE60',
-        danger: '#FF4242',
+        danger: {
+          DEFAULT: '#B91C1C',
+          emphasis: '#7F1D1D',
+        },
         warning: '#F39C12',
         border: '#E8E8E8',
         background: '#F5F5FA',

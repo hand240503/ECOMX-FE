@@ -42,7 +42,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   ),
   authPrimary: cn(
     'w-full border-0 bg-gradient-to-r from-rose-500 to-red-500 text-white font-semibold',
-    'shadow-md hover:shadow-lg hover:from-rose-600 hover:to-red-600',
+    'shadow-md hover:shadow-lg hover:from-rose-600 hover:to-danger',
     'active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed',
     'disabled:shadow-md disabled:active:scale-100'
   ),
@@ -62,8 +62,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     'disabled:opacity-50 disabled:cursor-not-allowed'
   ),
   danger: cn(
-    'border-0 bg-red-600 text-white',
-    'hover:bg-red-700',
+    'border-0 bg-danger text-white',
+    'hover:bg-danger-emphasis',
     'disabled:bg-red-300 disabled:cursor-not-allowed'
   )
 };

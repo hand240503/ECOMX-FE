@@ -7,6 +7,7 @@ import LoadingLink from '../../../components/LoadingLink';
 import { useUpdateUserAddress, useUserAddressById } from '../../../hooks/useUserAddresses';
 import { notify } from '../../../utils/notify';
 import { cn } from '../../../lib/cn';
+import { consumePostActionReturnPath } from '../../../lib/postActionReturnPath';
 import UserAddressForm, { formValuesToUpdatePayload, type UserAddressFormValues } from './UserAddressForm';
 
 export default function EditUserAddressTab() {
@@ -35,7 +36,8 @@ export default function EditUserAddressTab() {
       await updateMutation.mutateAsync({ id, payload });
       await authService.fetchCurrentUser();
       notify.success(t('profile_address_updated'));
-      navigate('/account/address');
+      const returnTo = consumePostActionReturnPath();
+      navigate(returnTo ?? '/account/address', { replace: Boolean(returnTo) });
     } catch (e) {
       const message = e instanceof Error ? e.message : t('profile_address_update_failed');
       notify.error(message);

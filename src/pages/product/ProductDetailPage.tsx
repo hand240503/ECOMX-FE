@@ -13,7 +13,8 @@ import {
   Truck,
   type LucideIcon
 } from 'lucide-react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { flushSync } from 'react-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import CategoryBreadcrumb, { type BreadcrumbItem } from '../category/CategoryBreadcrumb';
 import MainFooter from '../../layout/footer/MainFooter';
@@ -27,11 +28,14 @@ import { ProductGallery } from '../../components/product/detail/ProductGallery';
 import { ProductRecommendations } from '../../components/product/detail/ProductRecommendations';
 import { ProductReviewsPlaceholder } from '../../components/product/detail/ProductReviewsPlaceholder';
 import { useProductDetail } from '../../hooks/useProductDetail';
+import { useAuth } from '../../app/auth/AuthProvider';
 import { useCart } from '../../app/cart/CartProvider';
 import { useI18n } from '../../i18n/I18nProvider';
 import { getProductImageUrls } from '../../lib/productImage';
 import type { ProductDetailPriceRow } from '../../api/mappers/productDetailMapper';
 import { cn } from '../../lib/cn';
+import { cartLineKey } from '../../lib/cartStorage';
+import { saveCheckoutLineKeys } from '../../lib/checkoutIntent';
 import { formatPrice } from '../../lib/formatPrice';
 import {
   policiesToBadgeChips,
@@ -85,6 +89,8 @@ function descriptionPlainTextLength(html: string): number {
 const ProductDetailPage = () => {
   const { productId } = useParams<{ productId: string }>();
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { addItem } = useCart();
 
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
@@ -295,16 +301,24 @@ const ProductDetailPage = () => {
     setBuyNowLoading(true);
     try {
       await simulateCartApi('buy');
-      addItem({
-        productId: detailModel.id,
-        productName: detailModel.productName,
-        thumbnailUrl: imageUrls[0] ?? null,
-        unitId: selectedPrice.unitId,
-        unitName: selectedPrice.unitName,
-        unitPrice: selectedPrice.currentValue,
-        quantity
+      flushSync(() => {
+        addItem({
+          productId: detailModel.id,
+          productName: detailModel.productName,
+          thumbnailUrl: imageUrls[0] ?? null,
+          unitId: selectedPrice.unitId,
+          unitName: selectedPrice.unitName,
+          unitPrice: selectedPrice.currentValue,
+          quantity
+        });
       });
-      toast.success(t('pdp_buy_now_ok'));
+      const key = cartLineKey({ productId: detailModel.id, unitId: selectedPrice.unitId });
+      if (!isAuthenticated) {
+        saveCheckoutLineKeys([key]);
+        navigate('/login', { state: { from: '/checkout' } });
+      } else {
+        navigate('/checkout', { state: { keys: [key] } });
+      }
     } catch {
       toast.error(t('pdp_cart_error'));
     } finally {

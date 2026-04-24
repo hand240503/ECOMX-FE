@@ -5,6 +5,7 @@ import { useI18n } from '../../../i18n/I18nProvider';
 import { useCreateUserAddress } from '../../../hooks/useUserAddresses';
 import { notify } from '../../../utils/notify';
 import { cn } from '../../../lib/cn';
+import { consumePostActionReturnPath } from '../../../lib/postActionReturnPath';
 import UserAddressForm, { formValuesToCreatePayload, type UserAddressFormValues } from './UserAddressForm';
 
 export default function AddUserAddressTab() {
@@ -19,7 +20,8 @@ export default function AddUserAddressTab() {
       await createMutation.mutateAsync(payload);
       await authService.fetchCurrentUser();
       notify.success(t('profile_address_added'));
-      navigate('/account/address');
+      const returnTo = consumePostActionReturnPath();
+      navigate(returnTo ?? '/account/address', { replace: Boolean(returnTo) });
     } catch (e) {
       const message = e instanceof Error ? e.message : t('profile_address_add_failed');
       notify.error(message);

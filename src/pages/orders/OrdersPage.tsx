@@ -8,18 +8,11 @@ import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavi
 import CategoryBreadcrumb, { type BreadcrumbItem } from '../category/CategoryBreadcrumb';
 import { useI18n } from '../../i18n/I18nProvider';
 import { ACCOUNT_NAV_DEFS } from '../accountAreaNav';
-import CheckoutReturnFromAddressBanner from './components/CheckoutReturnFromAddressBanner';
 
-const ROUTE_TITLE_KEYS: Record<string, string> = {
-  '/account/edit/pass': 'profile_title_edit_pass',
-  '/account/edit/phone': 'profile_title_edit_phone',
-  '/account/edit/email': 'profile_title_edit_email',
-  '/account/forgot-password': 'profile_title_forgot_password',
-  '/account/address/new': 'profile_title_address_new'
-};
+const orderDetailPathPattern = /^\/orders\/\d+$/;
 
-const addressEditTitlePattern = /^\/account\/address\/[^/]+\/edit$/;
-const ProfilePage = () => {
+/** Layout đơn hàng: shell giống ProfilePage; route con là OrdersTab / OrderDetailTab. */
+export default function OrdersPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const location = useLocation();
@@ -34,7 +27,7 @@ const ProfilePage = () => {
     {
       fullName: user?.userInfo?.fullName,
       email: user?.email,
-      avatar: user?.userInfo?.avatar
+      avatar: user?.userInfo?.avatar,
     },
     t('profile_account_fallback_label')
   );
@@ -43,21 +36,14 @@ const ProfilePage = () => {
   const sidebarTitle = [badge.label, nickname].filter(Boolean).join(' · ');
 
   const activeLabel = useMemo(() => {
-    const titleKey = ROUTE_TITLE_KEYS[location.pathname];
-    if (titleKey) return t(titleKey);
-    if (addressEditTitlePattern.test(location.pathname)) return t('profile_title_address_edit');
-    return navItems.find((item) => item.path === location.pathname)?.label ?? navItems[0].label;
-  }, [location.pathname, navItems, t]);
+    if (orderDetailPathPattern.test(location.pathname)) return t('profile_title_order_detail');
+    return t('profile_nav_orders');
+  }, [location.pathname, t]);
 
   const profileBreadcrumbItems = useMemo<BreadcrumbItem[]>(
     () => [{ label: activeLabel, current: true }],
     [activeLabel]
   );
-
-  const isAddressSection =
-    location.pathname === '/account/address' ||
-    location.pathname === '/account/address/new' ||
-    addressEditTitlePattern.test(location.pathname);
 
   const handleTabNavigation = (event: MouseEvent<HTMLAnchorElement>, targetPath: string) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
@@ -125,8 +111,7 @@ const ProfilePage = () => {
 
           <main className="flex-1">
             <h1 className="profile-content-title">{activeLabel}</h1>
-            <div className="profile-content">
-              {isAddressSection ? <CheckoutReturnFromAddressBanner /> : null}
+            <div className="flex min-h-[400px] w-full items-center justify-center bg-[#f4f5fb]">
               {isRouteLoading ? (
                 <div className="profile-tab-loading-dots" aria-busy="true" aria-live="polite">
                   <span className="profile-tab-loading-dots__dot" />
@@ -144,6 +129,4 @@ const ProfilePage = () => {
       <MainFooter />
     </>
   );
-};
-
-export default ProfilePage;
+}

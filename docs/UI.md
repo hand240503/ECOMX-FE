@@ -58,7 +58,7 @@ Chỉ hiện trên mobile. Bar cố định (fixed) ở đáy màn hình, gồm 
 ```
 Primary:      #1A94FF   ← xanh Tiki, dùng cho CTA, link, badge active
 Primary Dark: #0E6FCC   ← hover state của primary
-Danger:       #FF4242   ← giá khuyến mãi, nút xóa, cảnh báo
+Danger:       #DC2626   ← giá khuyến mãi, nút xóa, cảnh báo
 Success:      #27AE60
 Warning:      #F39C12
 Text Primary: #27272A   ← tiêu đề, nội dung chính
@@ -115,7 +115,7 @@ theme: {
   extend: {
     colors: {
       primary:     { DEFAULT: '#1A94FF', dark: '#0E6FCC' },
-      danger:      '#FF4242',
+      danger:      '#DC2626',
       success:     '#27AE60',
       warning:     '#F39C12',
       text:        { primary: '#27272A', secondary: '#6B6B6B', disabled: '#BDBDBD' },

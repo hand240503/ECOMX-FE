@@ -1,12 +1,15 @@
 import { Check, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { authService } from '../../../api/services';
 import { Button } from '../../../components/ui';
 import LoadingLink from '../../../components/LoadingLink';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { cn } from '../../../lib/cn';
 import { useAuth } from '../../../app/auth/AuthProvider';
-import { useUserAddresses } from '../../../hooks/useUserAddresses';
+import { useUpdateUserAddress, useUserAddresses } from '../../../hooks/useUserAddresses';
 import type { UserAddress } from '../../../api/types/auth.types';
 import { formatAddressDetail } from '../../../domain/address/formatAddressDetail';
+import { notify } from '../../../utils/notify';
 
 function AddAddressDashedCta({ className }: { className?: string }) {
   const { t } = useI18n();
@@ -31,11 +34,15 @@ function AddAddressDashedCta({ className }: { className?: string }) {
 function AddressCard({
   address,
   recipientName,
-  phoneDisplay
+  phoneDisplay,
+  defaultBusy,
+  onSetDefault
 }: {
   address: UserAddress;
   recipientName: string;
   phoneDisplay: string;
+  defaultBusy: boolean;
+  onSetDefault: (address: UserAddress) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -77,6 +84,26 @@ function AddressCard({
         <span className="text-text-secondary">{t('profile_address_phone_label')} </span>
         {phoneDisplay}
       </p>
+
+      <div className="mt-3 border-t border-border pt-3">
+        <label
+          className={cn(
+            'flex items-start gap-2.5 text-body text-text-primary',
+            address.isDefault || defaultBusy ? 'cursor-default' : 'cursor-pointer'
+          )}
+        >
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 rounded-sm border-border accent-primary focus:ring-2 focus:ring-primary/20"
+            checked={address.isDefault}
+            disabled={address.isDefault || defaultBusy}
+            onChange={() => {
+              if (!address.isDefault && !defaultBusy) onSetDefault(address);
+            }}
+          />
+          <span>{t('profile_address_set_default')}</span>
+        </label>
+      </div>
     </div>
   );
 }
@@ -105,6 +132,8 @@ export default function AddressBookTab() {
   const { t } = useI18n();
   const { user } = useAuth();
   const { data, isLoading, isError, error, refetch, isFetching } = useUserAddresses();
+  const updateMutation = useUpdateUserAddress();
+  const [settingDefaultForId, setSettingDefaultForId] = useState<number | null>(null);
 
   const recipientName = (
     user?.userInfo?.fullName?.trim() ||
@@ -113,6 +142,30 @@ export default function AddressBookTab() {
   ).toUpperCase();
   const phoneDisplay =
     user?.userInfo?.telephone?.trim() || user?.phoneNumber?.trim() || '—';
+
+  const handleSetDefault = async (address: UserAddress) => {
+    if (address.isDefault) return;
+    setSettingDefaultForId(address.id);
+    try {
+      await updateMutation.mutateAsync({
+        id: address.id,
+        payload: {
+          addressLine: address.addressLine,
+          city: address.city,
+          state: address.state,
+          country: address.country,
+          zipCode: address.zipCode,
+          isDefault: true
+        }
+      });
+      await authService.fetchCurrentUser();
+      notify.success(t('profile_address_default_updated'));
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : t('profile_address_update_failed'));
+    } finally {
+      setSettingDefaultForId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -168,6 +221,8 @@ export default function AddressBookTab() {
                 address={address}
                 recipientName={recipientName}
                 phoneDisplay={phoneDisplay}
+                defaultBusy={settingDefaultForId === address.id || updateMutation.isPending}
+                onSetDefault={(a: UserAddress) => void handleSetDefault(a)}
               />
             </li>
           ))}
