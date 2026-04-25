@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronLeft, Copy, Store } from 'lucide-react';
+import { Bell, Check, ChevronLeft, Copy, Info, Store } from 'lucide-react';
 import { format, isValid, parseISO } from 'date-fns';
 import { enUS, vi } from 'date-fns/locale';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { CreatedOrderDetail } from '../../api/types/order.types';
+import type { CreatedOrderDetail, OrderDto } from '../../api/types/order.types';
 import type { ProductFullResponse } from '../../api/types/product.types';
 import { orderService } from '../../api/services';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/I18nProvider';
 import { orderLineDisplayFromProduct, useOrderDetailProducts } from '../../hooks/useOrderDetailProducts';
 import { cn } from '../../lib/cn';
 import { formatPrice } from '../../lib/formatPrice';
+import { isCodPaymentMethod } from '../../lib/paymentMethodUtils';
 import { parseOrderDescriptionJson } from '../../lib/orderDescriptionJson';
 import { notify } from '../../utils/notify';
 import type { Lang } from '../../utils/i18n';
@@ -87,11 +88,37 @@ function listPriceStrikethroughIfValid(
   return listTotal;
 }
 
-function SummaryRow({ label, children }: { label: string; children: ReactNode }) {
+function readOrderVnd(o: OrderDto, camel: keyof OrderDto, snake: string): number | null {
+  const r = o as Record<string, unknown>;
+  const raw = r[camel as string] !== undefined && r[camel as string] !== null ? r[camel as string] : r[snake];
+  if (raw === null || raw === undefined) return null;
+  return toFiniteNumber(raw);
+}
+
+function SummaryRow({
+  label,
+  children,
+  valueClassName,
+  labelExtra,
+}: {
+  label: string;
+  children: ReactNode;
+  valueClassName?: string;
+  labelExtra?: ReactNode;
+}) {
   return (
-    <div className="flex gap-3 border-b border-dotted border-border py-2.5 text-body last:border-b-0">
-      <span className="shrink-0 text-text-secondary">{label}</span>
-      <div className="min-w-0 flex-1 text-right font-medium text-text-primary">{children}</div>
+    <div className="flex justify-between gap-4 border-b border-dotted border-border py-2.5 text-body last:border-b-0">
+      <span className="min-w-0 text-text-secondary">
+        <span className="inline-flex items-center gap-1.5">
+          {label}
+          {labelExtra}
+        </span>
+      </span>
+      <div
+        className={cn('shrink-0 text-right font-medium tabular-nums', valueClassName ?? 'text-text-primary')}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -209,6 +236,29 @@ export default function OrderDetailTab() {
   const order = orderQuery.data!;
   const status = order.status;
   const shopName = t('orders_shop_platform_name');
+
+  const merchandiseSubtotal = useMemo(() => {
+    const lines = order.orderDetails ?? [];
+    return lines.reduce((s, line) => s + linePaidAmount(line, lines, order.total), 0);
+  }, [order]);
+
+  const shipFeeVnd = useMemo(
+    () => readOrderVnd(order, 'shippingFeeVnd', 'shipping_fee_vnd'),
+    [order]
+  );
+  const shipDiscountVnd = useMemo(
+    () => readOrderVnd(order, 'shippingDiscountVnd', 'shipping_discount_vnd'),
+    [order]
+  );
+  const shopVoucherVnd = useMemo(
+    () => readOrderVnd(order, 'shopVoucherDiscountVnd', 'shop_voucher_discount_vnd'),
+    [order]
+  );
+  const orderTotalVnd = toFiniteNumber(order.total) ?? 0;
+  const showShipDiscount = shipDiscountVnd != null && shipDiscountVnd > 0;
+  const showShopVoucher = shopVoucherVnd != null && shopVoucherVnd > 0;
+  const showCodPayBanner =
+    isCodPaymentMethod(order.paymentMethod?.code) && status >= 1 && status <= 3;
 
   return (
     <div className="w-full max-w-3xl">
@@ -333,7 +383,7 @@ export default function OrderDetailTab() {
                     {listStrike != null ? (
                       <p className="m-0 text-caption text-text-disabled line-through">{formatPrice(listStrike)}</p>
                     ) : null}
-                    <p className={cn('m-0 font-semibold text-primary', listStrike != null ? 'mt-0.5' : '')}>
+                    <p className={cn('m-0 font-semibold text-text-primary', listStrike != null ? 'mt-0.5' : '')}>
                       {formatPrice(paid)}
                     </p>
                   </div>
@@ -351,7 +401,71 @@ export default function OrderDetailTab() {
 
         <div className="border-t border-border px-4 py-2 tablet:px-6">
           <SummaryRow label={t('orders_detail_summary_requested_by')}>{t('orders_detail_summary_buyer')}</SummaryRow>
-          <SummaryRow label={t('orders_detail_summary_payment')}>{paymentLabel}</SummaryRow>
+
+          <div className="pt-1">
+            <SummaryRow label={t('orders_detail_line_merchandise')}>{formatPrice(merchandiseSubtotal)}</SummaryRow>
+            <SummaryRow label={t('orders_detail_line_shipping')}>
+              {shipFeeVnd != null ? formatPrice(shipFeeVnd) : '—'}
+            </SummaryRow>
+            {showShipDiscount ? (
+              <SummaryRow
+                label={t('orders_detail_line_shipping_discount')}
+                labelExtra={
+                  <span
+                    className="inline-flex shrink-0"
+                    title={t('orders_detail_shipping_discount_aria')}
+                  >
+                    <Info className="size-3.5 text-text-disabled" strokeWidth={2} aria-hidden />
+                    <span className="sr-only">{t('orders_detail_shipping_discount_aria')}</span>
+                  </span>
+                }
+                valueClassName="text-danger"
+              >
+                -{formatPrice(shipDiscountVnd!)}
+              </SummaryRow>
+            ) : null}
+            {showShopVoucher ? (
+              <SummaryRow label={t('orders_detail_line_shop_voucher')} valueClassName="text-danger">
+                -{formatPrice(shopVoucherVnd!)}
+              </SummaryRow>
+            ) : null}
+            <div className="flex justify-between gap-4 border-b-0 py-2.5 text-body">
+              <span className="shrink-0 text-text-secondary">{t('orders_detail_line_amount_due')}</span>
+              <span className="shrink-0 text-right text-[1.125rem] font-bold leading-tight text-danger tabular-nums">
+                {formatPrice(orderTotalVnd)}
+              </span>
+            </div>
+          </div>
+
+          {showCodPayBanner ? (
+            <div
+              className="mb-1 mt-3 flex gap-2 rounded-sm border border-warning/50 bg-amber-50/90 px-3 py-2.5 text-body text-text-primary dark:bg-amber-950/20"
+              role="status"
+            >
+              <Bell className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" strokeWidth={2} aria-hidden />
+              <p className="m-0 min-w-0 leading-snug">
+                {(() => {
+                  const codMsg = t('orders_detail_cod_banner');
+                  const parts = codMsg.split('{amount}');
+                  if (parts.length === 1) return codMsg;
+                  return (
+                    <>
+                      {parts[0]}
+                      <span className="font-semibold text-danger tabular-nums">{formatPrice(orderTotalVnd)}</span>
+                      {parts.slice(1).join('{amount}')}
+                    </>
+                  );
+                })()}
+              </p>
+            </div>
+          ) : null}
+
+          <SummaryRow
+            label={t('orders_detail_summary_payment')}
+            valueClassName="font-semibold text-text-primary"
+          >
+            {paymentLabel}
+          </SummaryRow>
           {status === 4 || status === 5 ? (
             <SummaryRow label={t('orders_detail_return_title')}>
               <div className="flex flex-col items-end gap-2 text-right">
@@ -390,11 +504,8 @@ export default function OrderDetailTab() {
             </span>
           </SummaryRow>
           <SummaryRow label={t('orders_detail_summary_address')}>
-            <span className="whitespace-pre-wrap break-words font-normal">{order.deliveryAddress?.trim() || '—'}</span>
-          </SummaryRow>
-          <SummaryRow label={t('orders_detail_summary_total')}>
-            <span className="text-title font-bold text-primary tabular-nums">
-              {formatPrice(toFiniteNumber(order.total) ?? 0)}
+            <span className="whitespace-pre-wrap break-words text-right font-normal text-text-primary">
+              {order.deliveryAddress?.trim() || '—'}
             </span>
           </SummaryRow>
         </div>

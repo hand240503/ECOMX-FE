@@ -7,6 +7,7 @@ import type {
   CreateOrderRequestBody,
   CreateOrderResult,
   OrderDto,
+  OrderShippingSnapshot,
   PaymentMethodDto,
   VnpayPaymentUrlData,
   VnpayPendingDto,
@@ -39,6 +40,22 @@ function hasOrderCreatedShape(d: Record<string, unknown>): boolean {
   return id != null && typeof orderCode === 'string';
 }
 
+function readShippingSnapshot(d: Record<string, unknown>): OrderShippingSnapshot {
+  const out: OrderShippingSnapshot = {};
+  if (d.shippingFeeVnd !== undefined || d.shipping_fee_vnd !== undefined) {
+    const v = d.shippingFeeVnd !== undefined ? d.shippingFeeVnd : d.shipping_fee_vnd;
+    if (v === null) out.shippingFeeVnd = null;
+    else if (typeof v === 'number' && Number.isFinite(v)) out.shippingFeeVnd = Math.round(v);
+  }
+  if (d.deliveryDistanceMeters !== undefined || d.delivery_distance_meters !== undefined) {
+    const v =
+      d.deliveryDistanceMeters !== undefined ? d.deliveryDistanceMeters : d.delivery_distance_meters;
+    if (v === null) out.deliveryDistanceMeters = null;
+    else if (typeof v === 'number' && Number.isFinite(v)) out.deliveryDistanceMeters = Math.round(v);
+  }
+  return out;
+}
+
 /** Chuẩn hóa `data` từ `POST /orders` (hợp đồng mới + snake_case + tương thích đơn phẳng). */
 function normalizeCreateOrderResult(raw: unknown): CreateOrderResult {
   if (raw == null || typeof raw !== 'object') {
@@ -50,7 +67,11 @@ function normalizeCreateOrderResult(raw: unknown): CreateOrderResult {
   if (outcome === 'ORDER_CREATED') {
     const orderPayload = d.order;
     if (orderPayload != null && typeof orderPayload === 'object') {
-      return { outcome: 'ORDER_CREATED', order: orderPayload as CreatedOrder };
+      return {
+        outcome: 'ORDER_CREATED',
+        order: orderPayload as CreatedOrder,
+        ...readShippingSnapshot(d),
+      };
     }
   }
 
@@ -79,12 +100,17 @@ function normalizeCreateOrderResult(raw: unknown): CreateOrderResult {
         pendingTotal,
         paymentMethod,
         message: readNonEmptyString(d.message),
+        ...readShippingSnapshot(d),
       };
     }
   }
 
   if (hasOrderCreatedShape(d)) {
-    return { outcome: 'ORDER_CREATED', order: raw as CreatedOrder };
+    return {
+      outcome: 'ORDER_CREATED',
+      order: raw as CreatedOrder,
+      ...readShippingSnapshot(d),
+    };
   }
 
   throw new Error('Unknown create order response shape');

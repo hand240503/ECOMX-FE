@@ -91,4 +91,9 @@ export const API_ENDPOINTS = {
     CHECKOUT_SESSION_PAYMENT_URL: (checkoutSessionId: number | string) =>
       `/payment/vnpay/checkout-sessions/${checkoutSessionId}/payment-url`,
   },
+
+  /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §1 */
+  SHIPPING: {
+    DISTANCE_TO_WAREHOUSE: '/shipping/distance-to-warehouse',
+  },
 };

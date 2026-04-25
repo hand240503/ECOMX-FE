@@ -35,6 +35,7 @@ import OrderDetailTab from '../../pages/orders/OrderDetailTab';
 import OrdersTab from '../../pages/orders/OrdersTab';
 import OrdersPage from '../../pages/orders/OrdersPage';
 import { useI18n } from '../../i18n/I18nProvider';
+import MapDevPage from '../../pages/dev/MapDevPage';
 
 /** Đường dẫn cũ /account/orders/:id → /orders/:id */
 function LegacyAccountOrderRedirect() {
@@ -101,6 +102,8 @@ const router = createBrowserRouter(
       </Route>
 
       <Route path="404" element={<NotFoundPage />} />
+
+      <Route path="map-dev" element={<MapDevPage />} />
 
       <Route
         path="login"

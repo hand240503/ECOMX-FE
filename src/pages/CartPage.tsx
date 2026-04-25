@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { useI18n } from '../i18n/I18nProvider';
 import { useCart } from '../app/cart/CartProvider';
 import { useEcomxCartProductDetails, cartLineDisplayFromByIds } from '../hooks/useEcomxCartProductDetails';
+import { currentUnitPrice } from '../lib/cartLineProductResolve';
 import { cartLineKey, parseCartLineKey, type CartLine } from '../lib/cartStorage';
 import { isProductFreeship } from '../lib/categoryProductUtils';
 import { formatPrice } from '../lib/formatPrice';
@@ -32,8 +33,10 @@ type RowInnerProps = {
   line: CartLine;
   k: string;
   checked: boolean;
-  display: { productName: string; thumbnailUrl: string | null };
+  display: { productName: string; thumbnailUrl: string | null; unitName: string };
   product: ProductFullResponse | undefined;
+  unitPriceText: string;
+  lineSubtotalText: string;
   t: (key: string) => string;
   lang: Lang;
   onToggle: (key: string, c: boolean) => void;
@@ -42,7 +45,7 @@ type RowInnerProps = {
 };
 
 function CartLineDesktop(props: RowInnerProps) {
-  const { line, k, checked, display, product, t, lang, onToggle, onQuantity, onRemove } = props;
+  const { line, k, checked, display, product, unitPriceText, lineSubtotalText, t, lang, onToggle, onQuantity, onRemove } = props;
   const simHref = `/search?q=${encodeURIComponent(display.productName)}`;
   const freeship = product ? isProductFreeship(product) : false;
 
@@ -86,7 +89,7 @@ function CartLineDesktop(props: RowInnerProps) {
             </div>
           )}
           <p className="mt-1.5 text-xs text-gray-500">
-            {t('cart_variant_label')}: {line.unitName}
+            {t('cart_variant_label')}: {display.unitName}
           </p>
           <p className="mt-0.5 text-xs text-gray-400">
             {t('cart_line_added_at')}: {formatCartLineAddedAt(line.addedAt, lang)}
@@ -95,7 +98,7 @@ function CartLineDesktop(props: RowInnerProps) {
       </div>
 
       <div className="flex min-h-8 items-center justify-center sm:justify-self-center">
-        <span className="text-right text-sm text-text-primary">{formatPrice(line.unitPrice)}</span>
+        <span className="text-right text-sm text-text-primary">{unitPriceText}</span>
       </div>
 
       <div className="flex min-h-8 items-center justify-center sm:justify-self-center">
@@ -109,7 +112,7 @@ function CartLineDesktop(props: RowInnerProps) {
           checked ? 'text-text-primary' : 'text-gray-500'
         )}
       >
-        {formatPrice(line.unitPrice * line.quantity)}
+        {lineSubtotalText}
       </div>
 
       <div className="flex min-w-0 w-full max-w-full flex-col items-center justify-center gap-1.5 self-center text-center text-xs sm:justify-self-center">
@@ -132,7 +135,7 @@ function CartLineDesktop(props: RowInnerProps) {
 }
 
 function CartLineMobile(props: RowInnerProps) {
-  const { line, k, checked, display, product, t, lang, onToggle, onQuantity, onRemove } = props;
+  const { line, k, checked, display, product, unitPriceText, lineSubtotalText, t, lang, onToggle, onQuantity, onRemove } = props;
   const simHref = `/search?q=${encodeURIComponent(display.productName)}`;
   const freeship = product ? isProductFreeship(product) : false;
 
@@ -173,7 +176,7 @@ function CartLineMobile(props: RowInnerProps) {
             </span>
           )}
           <p className="mt-1 text-xs text-gray-500">
-            {t('cart_variant_label')}: {line.unitName}
+            {t('cart_variant_label')}: {display.unitName}
           </p>
           <p className="mt-0.5 text-xs text-gray-400">
             {t('cart_line_added_at')}: {formatCartLineAddedAt(line.addedAt, lang)}
@@ -183,7 +186,7 @@ function CartLineMobile(props: RowInnerProps) {
       <div className="mt-3 flex flex-col gap-2.5 pl-6 text-sm">
         <div className="flex min-h-8 items-center justify-between text-gray-600">
           <span className="flex min-h-8 items-center">{t('cart_table_unit_price')}</span>
-          <span className="flex min-h-8 items-center text-text-primary">{formatPrice(line.unitPrice)}</span>
+          <span className="flex min-h-8 items-center text-text-primary">{unitPriceText}</span>
         </div>
         <div className="flex min-h-8 items-center justify-between">
           <span className="flex items-center text-gray-600">{t('cart_table_quantity')}</span>
@@ -199,7 +202,7 @@ function CartLineMobile(props: RowInnerProps) {
               checked ? 'text-text-primary' : 'text-gray-500'
             )}
           >
-            {formatPrice(line.unitPrice * line.quantity)}
+            {lineSubtotalText}
           </span>
         </div>
       </div>
@@ -227,7 +230,7 @@ export default function CartPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { lines, setQuantity, removeItem } = useCart();
-  const { byId } = useEcomxCartProductDetails(lines);
+  const { byId, isLoading: cartProductsLoading } = useEcomxCartProductDetails(lines);
   const isEmpty = lines.length === 0;
 
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
@@ -265,10 +268,11 @@ export default function CartPage() {
     let sum = 0;
     for (const l of lines) {
       if (!selectedKeys.has(cartLineKey(l))) continue;
-      sum += l.unitPrice * l.quantity;
+      const p = byId.get(l.productId);
+      sum += currentUnitPrice(p, l.unitId) * l.quantity;
     }
     return sum;
-  }, [lines, selectedKeys]);
+  }, [lines, selectedKeys, byId]);
 
   const toggleKey = useCallback((key: string, checked: boolean) => {
     setSelectedKeys((prev) => {
@@ -291,6 +295,20 @@ export default function CartPage() {
     if (isAllSelected) deselectAll();
     else selectAll();
   }, [isAllSelected, deselectAll, selectAll]);
+
+  const linePriceLabels = useCallback(
+    (line: CartLine, product: ProductFullResponse | undefined) => {
+      if (!product && cartProductsLoading) {
+        return { unitPriceText: '…', lineSubtotalText: '…' };
+      }
+      const u = currentUnitPrice(product, line.unitId);
+      return {
+        unitPriceText: formatPrice(u),
+        lineSubtotalText: formatPrice(u * line.quantity)
+      };
+    },
+    [cartProductsLoading]
+  );
 
   const deleteSelected = useCallback(() => {
     for (const k of selectedKeys) {
@@ -393,12 +411,15 @@ export default function CartPage() {
                   const checked = selectedKeys.has(k);
                   const display = cartLineDisplayFromByIds(line, byId);
                   const product = byId.get(line.productId);
+                  const { unitPriceText, lineSubtotalText } = linePriceLabels(line, product);
                   const base: RowInnerProps = {
                     line,
                     k,
                     checked,
                     display,
                     product,
+                    unitPriceText,
+                    lineSubtotalText,
                     t,
                     lang,
                     onToggle: toggleKey,

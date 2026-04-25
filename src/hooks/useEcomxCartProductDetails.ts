@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { productService } from '../api/services/productService';
 import type { ProductFullResponse } from '../api/types/product.types';
+import { currentUnitName } from '../lib/cartLineProductResolve';
 import type { CartLine } from '../lib/cartStorage';
 import { getProductImageUrl } from '../lib/productImage';
 
@@ -18,8 +19,8 @@ function uniqueProductIdsInCartOrder(lines: CartLine[]): number[] {
 }
 
 /**
- * `POST /products/by-ids` **chỉ** với `productId` đang lưu trong `ecomx_cart` (các dòng giỏ).
- * Dùng bổ sung tên/ảnh catalog; giá & đơn vị bán vẫn theo snapshot trong `CartLine`.
+ * `POST /products/by-ids` với `productId` đang lưu trong `ecomx_cart`.
+ * Dùng tên, ảnh, giá, đơn vị từ catalog theo `unitId` từng dòng.
  */
 export function useEcomxCartProductDetails(lines: CartLine[]) {
   const productIds = useMemo(() => uniqueProductIdsInCartOrder(lines), [lines]);
@@ -45,13 +46,14 @@ export function useEcomxCartProductDetails(lines: CartLine[]) {
 export function cartLineDisplayFromByIds(
   line: CartLine,
   byId: Map<number, ProductFullResponse>
-): { productName: string; thumbnailUrl: string | null } {
+): { productName: string; thumbnailUrl: string | null; unitName: string } {
   const p = byId.get(line.productId);
   if (!p) {
-    return { productName: line.productName, thumbnailUrl: line.thumbnailUrl };
+    return { productName: '—', thumbnailUrl: null, unitName: '—' };
   }
   return {
     productName: p.productName,
-    thumbnailUrl: getProductImageUrl(p) ?? line.thumbnailUrl,
+    thumbnailUrl: getProductImageUrl(p) ?? null,
+    unitName: currentUnitName(p, line.unitId),
   };
 }

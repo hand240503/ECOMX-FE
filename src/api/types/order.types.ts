@@ -10,12 +10,21 @@ export type PaymentMethodDto = {
   sortOrder?: number;
 };
 
+/**
+ * @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md — gửi `userAddressId` (ưu tiên) hoặc
+ * cặp `deliveryDistanceMeters` + `deliveryAddress` nếu không có id; không gửi cả hai → 400.
+ */
 export type CreateOrderRequestBody = {
   order: {
     description?: OrderDescriptionJsonString;
     typeOrder?: number;
+    /** Text snapshot; bắt buộc nếu không gửi `userAddressId` theo tài liệu BE. */
     deliveryAddress: string;
     paymentMethodId: number;
+    /** Id địa chỉ lưu — BE đọc khoảng cách + phí từ `user_address`. */
+    userAddressId?: number;
+    /** Mét; có thể gửi kèm `userAddressId` làm fallback hoặc bắt buộc nếu không có id. */
+    deliveryDistanceMeters?: number;
   };
   orderDetails: Array<{
     productId: number;
@@ -36,19 +45,25 @@ export type CreatedOrderDetail = {
   unitId?: number;
 };
 
+/** Snapshot từ `POST /orders` — @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §3 */
+export type OrderShippingSnapshot = {
+  shippingFeeVnd?: number | null;
+  deliveryDistanceMeters?: number | null;
+};
+
 /** Kết quả `POST /orders`. @see docs/API_add_order.md */
 export type CreateOrderOutcome = 'ORDER_CREATED' | 'PENDING_VNPAY_PAYMENT';
 
 export type CreateOrderResult =
-  | { outcome: 'ORDER_CREATED'; order: CreatedOrder }
-  | {
+  | ({ outcome: 'ORDER_CREATED'; order: CreatedOrder } & OrderShippingSnapshot)
+  | ({
       outcome: 'PENDING_VNPAY_PAYMENT';
       checkoutSessionId: number;
       transactionPublicId: string;
       pendingTotal?: number;
       paymentMethod?: { id: number; name: string; code: string };
       message?: string;
-    };
+    } & OrderShippingSnapshot);
 
 /** `POST /payment/vnpay/checkout-sessions/{id}/payment-url` */
 export type VnpayPaymentUrlData = {
@@ -85,6 +100,7 @@ export type CreatedOrder = {
   id: number;
   orderCode: string;
   status: number;
+  /** Theo API ship mới: thường = tổng dòng + phí (xem `API_SHIPPING_AND_ORDERS_UPDATE.md` §3). */
   total: number;
   typeOrder?: number;
   deliveryAddress: string;
@@ -102,6 +118,13 @@ export type CreatedOrder = {
   paidAt?: string | null;
   /** Gắn với phiên checkout (BE có thể trả khi tra cứu sau thanh toán thất bại). */
   checkoutSessionId?: number | null;
+  /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §4 */
+  deliveryDistanceMeters?: number | null;
+  shippingFeeVnd?: number | null;
+  /** Nếu BE trả: mức giảm phí vận chuyển (VND, số dương). */
+  shippingDiscountVnd?: number | null;
+  /** Nếu BE trả: giảm giá voucher shop (VND, số dương). */
+  shopVoucherDiscountVnd?: number | null;
 };
 
 /** Đơn từ `GET /orders` / `GET /orders/{id}` — cùng cấu trúc phản hồi tạo đơn. */

@@ -7,7 +7,7 @@ import { orderService } from '../../api/services';
 import { useI18n } from '../../i18n/I18nProvider';
 import { formatPrice } from '../../lib/formatPrice';
 import { parseCartLineKey } from '../../lib/cartStorage';
-import { saveCheckoutLineKeys } from '../../lib/checkoutIntent';
+import { clearStoredCheckoutLineKeys, peekStoredCheckoutLineKeys, saveCheckoutLineKeys } from '../../lib/checkoutIntent';
 import { setVnpayCheckoutFailureFlag } from '../../lib/vnpayCheckoutFailure';
 import {
   clearVnpayPendingContext,
@@ -46,6 +46,18 @@ export default function VnpayCallbackPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { removeItem } = useCart();
+
+  const removeVnpayLinesFromCart = useCallback(
+    (lineKeys: string[]) => {
+      for (const key of lineKeys) {
+        const parsed = parseCartLineKey(key);
+        if (parsed) {
+          removeItem(parsed.productId, parsed.unitId);
+        }
+      }
+    },
+    [removeItem]
+  );
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const vnpResponseCode = searchParams.get('vnp_ResponseCode');
@@ -83,13 +95,20 @@ export default function VnpayCallbackPage() {
           await orderService.devSimulateVnpaySuccess(transactionPublicId);
         }
         await queryClient.invalidateQueries({ queryKey: ['vnpay-pending', transactionPublicId] });
-        setVnpayOrdersAwaitPayload({
-          transactionPublicId,
-          lineKeys: ctx?.lineKeys ?? [],
-        });
+        const lineKeysForOrder =
+          ctx?.lineKeys?.length ? ctx.lineKeys : peekStoredCheckoutLineKeys();
         if (ctx?.lineKeys?.length) {
           saveCheckoutLineKeys(ctx.lineKeys);
+        } else if (lineKeysForOrder.length) {
+          saveCheckoutLineKeys(lineKeysForOrder);
         }
+        setVnpayOrdersAwaitPayload({
+          transactionPublicId,
+          lineKeys: lineKeysForOrder,
+        });
+        /** Xóa ngay — luồng 00 thường `navigate` trước khi effect COMPLETED chạy nên giỏ không được gỡ nếu chỉ dựa vào useEffect bên dưới. */
+        removeVnpayLinesFromCart(lineKeysForOrder);
+        clearStoredCheckoutLineKeys();
         clearVnpayPendingContext();
         navigate('/orders', { replace: true });
         return;
@@ -117,7 +136,7 @@ export default function VnpayCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [transactionPublicId, searchParamsKey, navigate, queryClient, ctx]);
+  }, [transactionPublicId, searchParamsKey, navigate, queryClient, ctx, removeVnpayLinesFromCart]);
 
   const pendingQuery = useQuery({
     queryKey: ['vnpay-pending', transactionPublicId],
@@ -192,10 +211,9 @@ export default function VnpayCallbackPage() {
       const doneKey = `ecomx_vnpay_settled_ok_${transactionPublicId}`;
       if (sessionStorage.getItem(doneKey)) return;
       sessionStorage.setItem(doneKey, '1');
-      for (const key of ctx?.lineKeys ?? []) {
-        const parsed = parseCartLineKey(key);
-        if (parsed) removeItem(parsed.productId, parsed.unitId);
-      }
+      const lineKeysToRemove = ctx?.lineKeys?.length ? ctx.lineKeys : peekStoredCheckoutLineKeys();
+      removeVnpayLinesFromCart(lineKeysToRemove);
+      clearStoredCheckoutLineKeys();
       void queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       clearVnpayPendingContext();
       clearVnpayOrdersAwaitPayload();
@@ -223,7 +241,7 @@ export default function VnpayCallbackPage() {
       terminalHandledRef.current = true;
       clearVnpayPendingContext();
     }
-  }, [transactionPublicId, stateU, order, ctx?.lineKeys, removeItem, queryClient, t, navigate]);
+  }, [transactionPublicId, stateU, order, ctx?.lineKeys, removeVnpayLinesFromCart, queryClient, t, navigate]);
 
   const hasVnpResponseCode = vnpResponseCode != null && vnpResponseCode.trim() !== '';
 

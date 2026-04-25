@@ -5,11 +5,12 @@ import { type BlockerFunction, useBlocker } from 'react-router';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/auth/AuthProvider';
 import { useCart } from '../app/cart/CartProvider';
-import { addressService, orderService } from '../api/services';
+import { addressService, orderService, shippingService } from '../api/services';
 import { QuantityInput } from '../components/product/QuantityInput';
 import { Button } from '../components/ui/Button';
 import { formatAddressDetail } from '../domain/address/formatAddressDetail';
 import { useEcomxCartProductDetails, cartLineDisplayFromByIds } from '../hooks/useEcomxCartProductDetails';
+import { currentUnitName, currentUnitPrice } from '../lib/cartLineProductResolve';
 import { useI18n } from '../i18n/I18nProvider';
 import { cartLineKey, type CartLine } from '../lib/cartStorage';
 import {
@@ -21,16 +22,17 @@ import { consumeVnpayCheckoutFailure } from '../lib/vnpayCheckoutFailure';
 import { saveVnpayPendingContext, clearVnpayPendingContext } from '../lib/vnpayPendingStorage';
 import { getVnpayResponseCodeMeta } from '../lib/vnpayResponseCodeMap';
 import { savePostActionReturnPath } from '../lib/postActionReturnPath';
+import type { CreateOrderRequestBody } from '../api/types/order.types';
 import { formatPrice } from '../lib/formatPrice';
 import { stringifyOrderDescription } from '../lib/orderDescriptionJson';
 import { isCodPaymentMethod } from '../lib/paymentMethodUtils';
+import { getAddressShippingSnapshot } from '../lib/userAddressShipping';
 import { cn } from '../lib/cn';
+import type { ShippingDistanceResponse } from '../api/types/shipping.types';
 import MainFooter from '../layout/footer/MainFooter';
 import MainHeader from '../layout/header/MainHeader';
 import { userAddressesQueryKey } from '../hooks/useUserAddresses';
 import { notify } from '../utils/notify';
-
-const SHIPPING_FEE_VND = 0;
 
 const checkoutQtyClass =
   '!h-8 !shadow-none rounded-sm [&_button]:!h-8 [&_button]:!w-7 [&_input]:!h-8 [&_input]:!w-9 [&_input]:!text-sm tablet:justify-self-center';
@@ -114,7 +116,7 @@ export default function CheckoutPage() {
     navigate('/', { replace: true });
   }, [leaveCheckoutBlocker, navigate]);
 
-  const { byId } = useEcomxCartProductDetails(checkoutLines);
+  const { byId, isLoading: checkoutProductsLoading } = useEcomxCartProductDetails(checkoutLines);
 
   const armReturnToCheckoutAfterAddressSave = useCallback(() => {
     savePostActionReturnPath('/checkout');
@@ -166,6 +168,42 @@ export default function CheckoutPage() {
   );
   const selectedAddress = defaultDeliveryAddress;
 
+  const addressLineForShipping = useMemo(() => {
+    if (!defaultDeliveryAddress) return '';
+    return formatAddressDetail(defaultDeliveryAddress);
+  }, [defaultDeliveryAddress]);
+
+  const shippingQuoteQuery = useQuery({
+    queryKey: ['checkout', 'shipping', defaultDeliveryAddress?.id, addressLineForShipping] as const,
+    queryFn: async ({ signal }): Promise<ShippingDistanceResponse> => {
+      if (!defaultDeliveryAddress) {
+        throw new Error('no address');
+      }
+      const { shippingFeeVnd, distanceToWarehouseMeters } =
+        getAddressShippingSnapshot(defaultDeliveryAddress);
+      if (shippingFeeVnd != null) {
+        const dm = distanceToWarehouseMeters ?? 0;
+        return {
+          distanceMeters: dm,
+          distanceKilometers: Math.round((dm / 1000) * 100) / 100,
+          durationSeconds: 0,
+          resolvedAddress: null,
+          originLatitude: 0,
+          originLongitude: 0,
+          warehouseLatitude: 0,
+          warehouseLongitude: 0,
+          shippingFeeVnd,
+        };
+      }
+      return shippingService.getDistanceToWarehouse(addressLineForShipping, { signal });
+    },
+    enabled:
+      Boolean(defaultDeliveryAddress) &&
+      !addressesQuery.isLoading &&
+      addressLineForShipping.trim().length > 0,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const list = paymentMethodOptions;
     if (!list.length || paymentMethodId != null) return;
@@ -173,12 +211,17 @@ export default function CheckoutPage() {
     setPaymentMethodId((firstCod ?? list[0]).id);
   }, [paymentMethodOptions, paymentMethodId]);
 
-  const itemsTotal = useMemo(
-    () => checkoutLines.reduce((s, l) => s + l.unitPrice * l.quantity, 0),
-    [checkoutLines]
-  );
+  const itemsTotal = useMemo(() => {
+    let s = 0;
+    for (const l of checkoutLines) {
+      const p = byId.get(l.productId);
+      s += currentUnitPrice(p, l.unitId) * l.quantity;
+    }
+    return s;
+  }, [checkoutLines, byId]);
   const voucherDiscount = 0;
-  const grandTotal = itemsTotal + SHIPPING_FEE_VND - voucherDiscount;
+  const shippingFeeVnd = shippingQuoteQuery.data?.shippingFeeVnd;
+  const grandTotal = itemsTotal + (shippingFeeVnd ?? 0) - voucherDiscount;
 
   const recipientName = user?.userInfo?.fullName?.trim() || user?.username?.trim() || '';
   const recipientPhone = user?.phoneNumber?.trim() || user?.userInfo?.telephone?.trim() || '';
@@ -192,26 +235,36 @@ export default function CheckoutPage() {
       if (!selectedPm) throw new Error('validation');
       const addrText = formatAddressDetail(selectedAddress);
       const deliveryAddress = buildDeliverySnapshot(recipientName, recipientPhone, addrText);
+      const orderBody: CreateOrderRequestBody['order'] = {
+        description: stringifyOrderDescription({
+          unit: '',
+          message: sellerNote.trim(),
+          note: orderNote.trim(),
+        }),
+        typeOrder: 0,
+        deliveryAddress,
+        paymentMethodId,
+        userAddressId: selectedAddress.id,
+      };
+      const q = shippingQuoteQuery.data;
+      if (q != null && Number.isFinite(q.distanceMeters) && q.distanceMeters >= 0) {
+        orderBody.deliveryDistanceMeters = Math.round(q.distanceMeters);
+      }
       return orderService.createOrder({
-        order: {
-          description: stringifyOrderDescription({
-            unit: '',
-            message: sellerNote.trim(),
-            note: orderNote.trim(),
-          }),
-          typeOrder: 0,
-          deliveryAddress,
-          paymentMethodId,
-        },
-        orderDetails: checkoutLines.map((l: CartLine) => ({
-          productId: l.productId,
-          quantity: l.quantity,
-          description: stringifyOrderDescription({
-            unit: l.unitName?.trim() ?? '',
-            message: '',
-            note: '',
-          }),
-        })),
+        order: orderBody,
+        orderDetails: checkoutLines.map((l: CartLine) => {
+          const p = byId.get(l.productId);
+          const un = currentUnitName(p, l.unitId);
+          return {
+            productId: l.productId,
+            quantity: l.quantity,
+            description: stringifyOrderDescription({
+              unit: un === '—' ? '' : un,
+              message: '',
+              note: '',
+            }),
+          };
+        }),
       });
     },
     onSuccess: async (result) => {
@@ -264,13 +317,18 @@ export default function CheckoutPage() {
     return <Navigate to="/cart" replace state={{ message: t('checkout_empty_redirect') }} />;
   }
 
+  const shippingQuoteReady =
+    !defaultDeliveryAddress ||
+    (shippingQuoteQuery.isSuccess && !shippingQuoteQuery.isError);
   const canSubmit =
     Boolean(selectedAddress) &&
     paymentMethodId != null &&
     !paymentQuery.isLoading &&
     paymentMethodOptions.length > 0 &&
     !placeOrderMutation.isPending &&
-    !vnpayRedirecting;
+    !vnpayRedirecting &&
+    !checkoutProductsLoading &&
+    shippingQuoteReady;
 
   const selectedPayment = paymentMethodOptions.find((m) => m.id === paymentMethodId);
   const isVnpaySelected = isVnpayPaymentMethodCode(selectedPayment?.code);
@@ -374,7 +432,13 @@ export default function CheckoutPage() {
               <ul className="m-0 divide-y divide-border p-0">
                 {checkoutLines.map((line) => {
                   const display = cartLineDisplayFromByIds(line, byId);
-                  const lineSub = line.unitPrice * line.quantity;
+                  const p = byId.get(line.productId);
+                  const up = currentUnitPrice(p, line.unitId);
+                  const lineSub = up * line.quantity;
+                  const priceText =
+                    !p && checkoutProductsLoading ? '…' : formatPrice(up);
+                  const lineSubText =
+                    !p && checkoutProductsLoading ? '…' : formatPrice(lineSub);
                   return (
                     <li key={cartLineKey(line)} className="px-4 py-4 tablet:px-5">
                       <div className="grid grid-cols-1 gap-3 tablet:grid-cols-[1fr_6.5rem_6.5rem_6.5rem] tablet:items-center tablet:gap-3">
@@ -396,7 +460,7 @@ export default function CheckoutPage() {
                           <div className="min-w-0">
                             <p className="line-clamp-2 text-title text-text-primary">{display.productName}</p>
                             <p className="mt-0.5 text-caption text-text-secondary">
-                              {t('checkout_variant_prefix')} {line.unitName}
+                              {t('checkout_variant_prefix')} {display.unitName}
                             </p>
                           </div>
                         </div>
@@ -404,7 +468,7 @@ export default function CheckoutPage() {
                           <span className="text-caption text-text-secondary tablet:hidden">
                             {t('checkout_col_unit_price')}
                           </span>
-                          <span className="text-body font-medium text-text-primary">{formatPrice(line.unitPrice)}</span>
+                          <span className="text-body font-medium text-text-primary">{priceText}</span>
                         </div>
                         <div className="flex justify-between gap-2 tablet:flex tablet:flex-col tablet:items-center tablet:justify-center tablet:text-center">
                           <span className="text-caption text-text-secondary tablet:hidden">
@@ -428,7 +492,7 @@ export default function CheckoutPage() {
                           <span className="text-caption text-text-secondary tablet:hidden">
                             {t('checkout_col_subtotal')}
                           </span>
-                          <span className="text-body font-semibold text-text-primary">{formatPrice(lineSub)}</span>
+                          <span className="text-body font-semibold text-text-primary">{lineSubText}</span>
                         </div>
                       </div>
                     </li>
@@ -451,10 +515,43 @@ export default function CheckoutPage() {
                 <div>
                   <p className="m-0 text-body font-medium text-text-primary">{t('checkout_shipping_method')}</p>
                   <p className="m-0 text-caption text-text-secondary">{t('checkout_shipping_eta')}</p>
+                  {shippingQuoteQuery.isSuccess &&
+                  shippingQuoteQuery.data &&
+                  (shippingQuoteQuery.data.distanceKilometers > 0 || shippingQuoteQuery.data.distanceMeters > 0) ? (
+                    <p className="m-0 mt-1 text-caption text-text-secondary">
+                      {t('checkout_shipping_distance_km').replace(
+                        '{km}',
+                        String(
+                          shippingQuoteQuery.data.distanceKilometers > 0
+                            ? shippingQuoteQuery.data.distanceKilometers
+                            : Math.round((shippingQuoteQuery.data.distanceMeters / 1000) * 10) / 10
+                        )
+                      )}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p className="m-0 text-body font-medium text-text-primary">{t('checkout_shipping_standard')}</p>
-                  <p className="m-0 text-body text-text-primary">{formatPrice(SHIPPING_FEE_VND)}</p>
+                  {!defaultDeliveryAddress ? (
+                    <p className="m-0 text-body text-text-disabled">—</p>
+                  ) : shippingQuoteQuery.isError ? (
+                    <div className="mt-1 flex flex-col items-end gap-1">
+                      <p className="m-0 text-caption text-danger">{t('checkout_shipping_error')}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-sm"
+                        onClick={() => void shippingQuoteQuery.refetch()}
+                      >
+                        {t('checkout_shipping_retry')}
+                      </Button>
+                    </div>
+                  ) : shippingQuoteQuery.isLoading ? (
+                    <p className="m-0 text-body text-text-secondary">{t('checkout_shipping_fetching')}</p>
+                  ) : (
+                    <p className="m-0 text-body text-text-primary">{formatPrice(shippingFeeVnd ?? 0)}</p>
+                  )}
                 </div>
               </div>
 
@@ -463,7 +560,7 @@ export default function CheckoutPage() {
                   <span className="text-text-secondary">
                     {t('checkout_shop_subtotal').replace('{n}', String(itemCount))}
                   </span>{' '}
-                  <span className="font-bold text-primary">{formatPrice(itemsTotal + SHIPPING_FEE_VND)}</span>
+                  <span className="font-bold text-primary">{formatPrice(grandTotal)}</span>
                 </p>
               </div>
             </section>
@@ -556,7 +653,17 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-text-secondary">{t('checkout_summary_shipping')}</span>
-                  <span className="font-medium text-text-primary">{formatPrice(SHIPPING_FEE_VND)}</span>
+                  <span className="text-right font-medium text-text-primary">
+                    {!defaultDeliveryAddress ? (
+                      '—'
+                    ) : shippingQuoteQuery.isError ? (
+                      <span className="text-danger">{t('checkout_shipping_error_short')}</span>
+                    ) : shippingQuoteQuery.isLoading ? (
+                      '…'
+                    ) : (
+                      formatPrice(shippingFeeVnd ?? 0)
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-text-secondary">{t('checkout_summary_voucher')}</span>

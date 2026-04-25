@@ -2,7 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { ClipboardList, MessageCircle, Search } from 'lucide-react';
 import { format, isValid, parseISO, type Locale } from 'date-fns';
 import { enUS, vi } from 'date-fns/locale';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../app/cart/CartProvider';
 import { orderService, productService } from '../../api/services';
@@ -10,6 +10,7 @@ import type { CreatedOrderDetail, OrderDto } from '../../api/types/order.types';
 import type { ProductFullResponse } from '../../api/types/product.types';
 import { orderLineDisplayFromProduct, uniqueProductIdsFromOrders } from '../../hooks/useOrderDetailProducts';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nProvider';
 import { parseCartLineKey } from '../../lib/cartStorage';
 import { clearVnpayOrdersAwaitPayload, type VnpayOrdersAwaitPayload, readVnpayOrdersAwaitPayload } from '../../lib/vnpayOrdersAwaitStorage';
@@ -201,9 +202,12 @@ function OrderCard({
   const headerDesc = parseOrderDescriptionJson(order.description ?? null);
   const footerHint = orderFooterHint(order, headerDesc, t);
 
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+
   const cancelMutation = useMutation({
     mutationFn: () => orderService.cancelOrder(order.id),
     onSuccess: () => {
+      setCancelDialogOpen(false);
       notify.success(t('orders_cancel_success'));
       void queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['order-detail', order.id] });
@@ -213,10 +217,19 @@ function OrderCard({
     },
   });
 
-  const onCancelOrder = () => {
-    if (!window.confirm(t('orders_cancel_confirm'))) return;
+  const onCancelOrderClick = useCallback(() => {
+    setCancelDialogOpen(true);
+  }, []);
+
+  const onCancelDialogDismiss = useCallback(() => {
+    if (!cancelMutation.isPending) {
+      setCancelDialogOpen(false);
+    }
+  }, [cancelMutation.isPending]);
+
+  const onCancelDialogConfirm = useCallback(() => {
     cancelMutation.mutate();
-  };
+  }, [cancelMutation]);
 
   return (
     <article
@@ -378,7 +391,7 @@ function OrderCard({
             <button
               type="button"
               disabled={cancelMutation.isPending}
-              onClick={onCancelOrder}
+              onClick={onCancelOrderClick}
               className={cn(secondaryActionClass, 'disabled:cursor-not-allowed disabled:opacity-50')}
             >
               {cancelMutation.isPending ? t('orders_action_cancel_pending') : t('orders_action_cancel_order')}
@@ -386,6 +399,18 @@ function OrderCard({
           ) : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={cancelDialogOpen}
+        title={t('orders_action_cancel_order')}
+        message={t('orders_cancel_confirm')}
+        cancelLabel={t('common_close')}
+        confirmLabel={t('orders_action_cancel_order')}
+        confirmVariant="danger"
+        confirmLoading={cancelMutation.isPending}
+        onCancel={onCancelDialogDismiss}
+        onConfirm={onCancelDialogConfirm}
+      />
     </article>
   );
 }

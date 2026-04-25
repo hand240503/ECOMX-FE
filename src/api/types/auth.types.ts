@@ -53,6 +53,12 @@ export interface UserAddress {
   country: string;
   zipCode: string | null;
   isDefault: boolean;
+  /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §2 */
+  addressType?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceToWarehouseMeters?: number | null;
+  shippingFeeVnd?: number | null;
 }
 
 /** `POST /users/addresses` — docs/API_user_address.md */

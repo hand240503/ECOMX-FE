@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { useAuth } from '../../../app/auth/AuthProvider';
@@ -10,6 +10,11 @@ import {
 } from '../../../data/vietnamAddressTree';
 import type { CreateAddressRequest, UpdateAddressRequest, UserAddress } from '../../../api/types/auth.types';
 import { cn } from '../../../lib/cn';
+import { buildAddressGeocodeQuery } from '../../../lib/geo/buildAddressGeocodeQuery';
+import { nominatimSearch } from '../../../lib/geo/nominatimSearch';
+
+const AddressOsmMapPicker = lazy(() => import('../../../components/address/AddressOsmMapPicker'));
+const GEOCODE_DEBOUNCE_MS = 650;
 
 export type UserAddressFormValues = {
   fullName: string;
@@ -138,7 +143,14 @@ export default function UserAddressForm({ initialAddress, isSubmitting, onValidS
     defaultValues: defaults
   });
 
+  const [mapPin, setMapPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const mapSearchAcRef = useRef<AbortController | null>(null);
+
   const province = useWatch({ control, name: 'province' });
+  const provinceCustom = useWatch({ control, name: 'provinceCustom' });
+  const wardWatched = useWatch({ control, name: 'ward' });
+  const addressLineWatched = useWatch({ control, name: 'addressLine' });
   /** Chỉ gộp phường đã lưu khi đang đúng tỉnh/TP ban đầu (tránh lẫn khi user đổi tỉnh). */
   const orphanWard = province === defaults.province ? defaults.ward : '';
 
@@ -153,8 +165,56 @@ export default function UserAddressForm({ initialAddress, isSubmitting, onValidS
     return [orphanWard, ...baseWardList].sort((a, b) => a.localeCompare(b, 'vi'));
   }, [baseWardList, orphanWard]);
 
+  /** Sau khi nhập đủ tỉnh + phường + địa chỉ: geocode (Nominatim) rồi hiển thị trên bản đồ. */
+  useEffect(() => {
+    const q = buildAddressGeocodeQuery({
+      province,
+      provinceCustom: provinceCustom || '',
+      ward: wardWatched || '',
+      addressLine: addressLineWatched || ''
+    });
+    if (!q) {
+      mapSearchAcRef.current?.abort();
+      setMapPin(null);
+      setMapError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      mapSearchAcRef.current?.abort();
+      const ac = new AbortController();
+      mapSearchAcRef.current = ac;
+      setMapError(null);
+      nominatimSearch(q, ac.signal)
+        .then((res) => {
+          if (ac.signal.aborted) {
+            return;
+          }
+          if ('error' in res) {
+            setMapError(res.error);
+            setMapPin(null);
+          } else {
+            setMapPin({ lat: res.lat, lng: res.lng });
+            setMapError(null);
+          }
+        })
+        .catch((e) => {
+          if (e instanceof Error && e.name === 'AbortError') {
+            return;
+          }
+          setMapError(e instanceof Error ? e.message : t('profile_address_map_search_error'));
+          setMapPin(null);
+        })
+    }, GEOCODE_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      mapSearchAcRef.current?.abort();
+    };
+  }, [province, provinceCustom, wardWatched, addressLineWatched, t]);
+
   useEffect(() => {
     reset(defaults);
+    setMapPin(null);
+    setMapError(null);
   }, [defaults, reset]);
 
   const { onChange: onProvinceChange, ...provinceRegister } = register('province');
@@ -285,6 +345,27 @@ export default function UserAddressForm({ initialAddress, isSubmitting, onValidS
           ) : null}
         </div>
       </FormRow>
+
+      <div className="grid grid-cols-1 gap-1.5 tablet:grid-cols-[minmax(128px,168px),minmax(0,1fr)] tablet:gap-x-3">
+        <div className="text-body text-text-primary tablet:pt-1">{t('profile_address_map_title')}</div>
+        <div className="min-w-0">
+          {mapError ? <p className="mb-1 text-caption text-warning">{mapError}</p> : null}
+          <Suspense
+            fallback={
+              <div className="flex min-h-[180px] items-center justify-center rounded-sm border border-border bg-gray-50 text-caption text-text-secondary">
+                {t('profile_address_map_load_map')}
+              </div>
+            }
+          >
+            <AddressOsmMapPicker
+              center={[10.8231, 106.6297]}
+              initialZoom={12}
+              marker={mapPin}
+              disabled={isSubmitting}
+            />
+          </Suspense>
+        </div>
+      </div>
 
       <FormRow label={t('profile_address_label_kind')} alignStart>
         <div
