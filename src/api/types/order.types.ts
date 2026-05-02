@@ -11,15 +11,24 @@ export type PaymentMethodDto = {
 };
 
 /**
- * @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md — gửi `userAddressId` (ưu tiên) hoặc
- * cặp `deliveryDistanceMeters` + `deliveryAddress` nếu không có id; không gửi cả hai → 400.
+ * @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md
+ *
+ * Bắt buộc một trong hai:
+ * - `userAddressId` (địa chỉ đã geocode/OSRM trên BE). Nếu chưa có khoảng cách trên bản ghi,
+ *   gửi thêm `deliveryDistanceMeters` làm fallback.
+ * - Hoặc `deliveryDistanceMeters` (≥ 0) **và** `deliveryAddress` (text) khi không có `userAddressId`.
+ *
+ * Chỉ gửi mỗi `deliveryAddress` không còn hợp lệ → BE 400.
  */
 export type CreateOrderRequestBody = {
   order: {
     description?: OrderDescriptionJsonString;
     typeOrder?: number;
-    /** Text snapshot; bắt buộc nếu không gửi `userAddressId` theo tài liệu BE. */
-    deliveryAddress: string;
+    /**
+     * Khi có `userAddressId`, BE tự ghép địa chỉ đầy đủ — có thể `''`.
+     * Khi không có `userAddressId`: bắt buộc chuỗi snapshot giao hàng.
+     */
+    deliveryAddress?: string;
     paymentMethodId: number;
     /** Id địa chỉ lưu — BE đọc khoảng cách + phí từ `user_address`. */
     userAddressId?: number;
@@ -59,6 +68,7 @@ export type CreateOrderResult =
   | ({
       outcome: 'PENDING_VNPAY_PAYMENT';
       checkoutSessionId: number;
+      /** Id phiên thanh toán do BE gán (ví dụ `"42"`), không phải UUID do FE tạo. */
       transactionPublicId: string;
       pendingTotal?: number;
       paymentMethod?: { id: number; name: string; code: string };

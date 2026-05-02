@@ -187,6 +187,28 @@ export default function OrderDetailTab() {
     return o.paymentMethod.name?.trim() || o.paymentMethod.code || '—';
   }, [orderQuery.data]);
 
+  const orderData = orderQuery.data;
+  const merchandiseSubtotal = useMemo(() => {
+    if (!orderData) return 0;
+    const olines = orderData.orderDetails ?? [];
+    return olines.reduce((s, line) => s + linePaidAmount(line, olines, orderData.total), 0);
+  }, [orderData]);
+  const shipFeeVnd = useMemo(
+    () => (orderData ? readOrderVnd(orderData, 'shippingFeeVnd', 'shipping_fee_vnd') : null),
+    [orderData]
+  );
+  const shipDiscountVnd = useMemo(
+    () => (orderData ? readOrderVnd(orderData, 'shippingDiscountVnd', 'shipping_discount_vnd') : null),
+    [orderData]
+  );
+  const shopVoucherVnd = useMemo(
+    () =>
+      orderData
+        ? readOrderVnd(orderData, 'shopVoucherDiscountVnd', 'shop_voucher_discount_vnd')
+        : null,
+    [orderData]
+  );
+
   const onCopyCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
@@ -237,23 +259,6 @@ export default function OrderDetailTab() {
   const status = order.status;
   const shopName = t('orders_shop_platform_name');
 
-  const merchandiseSubtotal = useMemo(() => {
-    const lines = order.orderDetails ?? [];
-    return lines.reduce((s, line) => s + linePaidAmount(line, lines, order.total), 0);
-  }, [order]);
-
-  const shipFeeVnd = useMemo(
-    () => readOrderVnd(order, 'shippingFeeVnd', 'shipping_fee_vnd'),
-    [order]
-  );
-  const shipDiscountVnd = useMemo(
-    () => readOrderVnd(order, 'shippingDiscountVnd', 'shipping_discount_vnd'),
-    [order]
-  );
-  const shopVoucherVnd = useMemo(
-    () => readOrderVnd(order, 'shopVoucherDiscountVnd', 'shop_voucher_discount_vnd'),
-    [order]
-  );
   const orderTotalVnd = toFiniteNumber(order.total) ?? 0;
   const showShipDiscount = shipDiscountVnd != null && shipDiscountVnd > 0;
   const showShopVoucher = shopVoucherVnd != null && shopVoucherVnd > 0;
@@ -430,8 +435,8 @@ export default function OrderDetailTab() {
               </SummaryRow>
             ) : null}
             <div className="flex justify-between gap-4 border-b-0 py-2.5 text-body">
-              <span className="shrink-0 text-text-secondary">{t('orders_detail_line_amount_due')}</span>
-              <span className="shrink-0 text-right text-[1.125rem] font-bold leading-tight text-danger tabular-nums">
+              <span className="shrink-0 font-medium text-primary">{t('orders_detail_line_amount_due')}</span>
+              <span className="shrink-0 text-right text-[1.125rem] font-bold leading-tight text-primary tabular-nums">
                 {formatPrice(orderTotalVnd)}
               </span>
             </div>

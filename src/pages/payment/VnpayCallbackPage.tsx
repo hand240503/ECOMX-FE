@@ -36,6 +36,34 @@ function isPendingState(s: string | undefined): boolean {
   return normState(s) === 'PENDING';
 }
 
+function formatCountdownMmSs(totalMs: number): string {
+  const ms = Math.max(0, totalMs);
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/** Đếm ngược tới `expiresAt` (ISO); cập nhật mỗi giây. */
+function useMillisUntil(iso: string | undefined | null): number | null | undefined {
+  const [v, setV] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (iso == null || String(iso).trim() === '') {
+      setV(null);
+      return;
+    }
+    const end = Date.parse(String(iso));
+    if (!Number.isFinite(end)) {
+      setV(null);
+      return;
+    }
+    const tick = () => setV(end - Date.now());
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [iso]);
+  return v;
+}
+
 /** Gọi `POST .../dev-simulate-success` (chỉ khi cần mô phỏng IPN local). Tắt: `VITE_VNPAY_DEV_SIMULATE_SUCCESS` không set và build production. */
 function isVnpayDevSimulateClientEnabled(): boolean {
   if (import.meta.env.DEV) return true;
@@ -147,6 +175,11 @@ export default function VnpayCallbackPage() {
       return (vnpResponseCode ?? '').trim() === '00' ? 2000 : 2800;
     },
   });
+
+  const expiresAtIso = pendingQuery.data?.expiresAt ?? null;
+  const msUntilExpiry = useMillisUntil(expiresAtIso);
+  const checkoutSessionIdDisplay =
+    pendingQuery.data?.checkoutSessionId ?? ctx?.checkoutSessionId ?? null;
 
   const state = pendingQuery.data?.state;
   const stateU = normState(state);
@@ -341,12 +374,38 @@ export default function VnpayCallbackPage() {
                 </dt>
                 <dd className="m-0 break-all font-mono text-sm">{transactionPublicId}</dd>
               </div>
+              {checkoutSessionIdDisplay != null ? (
+                <div>
+                  <dt className="text-caption text-text-secondary">
+                    {t('vnpay_callback_session_checkout_id')}
+                  </dt>
+                  <dd className="m-0 font-mono text-sm">{String(checkoutSessionIdDisplay)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-caption text-text-secondary">
                   {t('vnpay_callback_session_state')}
                 </dt>
                 <dd className="m-0">{String(pendingQuery.data.state)}</dd>
               </div>
+              {expiresAtIso ? (
+                <div>
+                  <dt className="text-caption text-text-secondary">{t('vnpay_callback_session_expires')}</dt>
+                  <dd className="m-0 text-text-primary">
+                    <span>{new Date(expiresAtIso).toLocaleString()}</span>
+                    {typeof msUntilExpiry === 'number' && msUntilExpiry > 0 ? (
+                      <span className="ml-2 text-caption text-warning">
+                        {t('vnpay_session_countdown_remaining').replace(
+                          '{time}',
+                          formatCountdownMmSs(msUntilExpiry)
+                        )}
+                      </span>
+                    ) : typeof msUntilExpiry === 'number' && msUntilExpiry <= 0 ? (
+                      <span className="ml-2 text-caption text-danger">{t('vnpay_session_expired_notice')}</span>
+                    ) : null}
+                  </dd>
+                </div>
+              ) : null}
               {pendingQuery.data.pendingTotal != null ? (
                 <div>
                   <dt className="text-caption text-text-secondary">

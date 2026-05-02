@@ -37,18 +37,6 @@ import { notify } from '../utils/notify';
 const checkoutQtyClass =
   '!h-8 !shadow-none rounded-sm [&_button]:!h-8 [&_button]:!w-7 [&_input]:!h-8 [&_input]:!w-9 [&_input]:!text-sm tablet:justify-self-center';
 
-function buildDeliverySnapshot(
-  fullName: string,
-  phone: string | undefined,
-  addressText: string
-): string {
-  const name = fullName.trim();
-  const phoneTrim = phone?.trim() ?? '';
-  const phonePart = phoneTrim ? `(+84) ${phoneTrim.replace(/^\+?84/, '').replace(/^0/, '')}` : '';
-  const parts = [name, phonePart, addressText].filter(Boolean);
-  return parts.join(' — ');
-}
-
 function isVnpayPaymentMethodCode(code: string | undefined): boolean {
   return code?.trim().toUpperCase() === 'VNPAY';
 }
@@ -181,8 +169,8 @@ export default function CheckoutPage() {
       }
       const { shippingFeeVnd, distanceToWarehouseMeters } =
         getAddressShippingSnapshot(defaultDeliveryAddress);
-      if (shippingFeeVnd != null) {
-        const dm = distanceToWarehouseMeters ?? 0;
+      if (shippingFeeVnd != null && distanceToWarehouseMeters != null) {
+        const dm = distanceToWarehouseMeters;
         return {
           distanceMeters: dm,
           distanceKilometers: Math.round((dm / 1000) * 100) / 100,
@@ -233,8 +221,7 @@ export default function CheckoutPage() {
       }
       const selectedPm = paymentMethodOptions.find((m) => m.id === paymentMethodId);
       if (!selectedPm) throw new Error('validation');
-      const addrText = formatAddressDetail(selectedAddress);
-      const deliveryAddress = buildDeliverySnapshot(recipientName, recipientPhone, addrText);
+      /** Có `userAddressId` → BE tự ghép địa chỉ trên đơn; không gửi mỗi chuỗi snapshot. */
       const orderBody: CreateOrderRequestBody['order'] = {
         description: stringifyOrderDescription({
           unit: '',
@@ -242,7 +229,7 @@ export default function CheckoutPage() {
           note: orderNote.trim(),
         }),
         typeOrder: 0,
-        deliveryAddress,
+        deliveryAddress: '',
         paymentMethodId,
         userAddressId: selectedAddress.id,
       };
@@ -275,6 +262,7 @@ export default function CheckoutPage() {
         try {
           saveVnpayPendingContext({
             transactionPublicId: result.transactionPublicId,
+            checkoutSessionId: result.checkoutSessionId,
             lineKeys,
           });
           const { paymentUrl } = await orderService.createVnpayPaymentUrl(result.checkoutSessionId);
@@ -682,7 +670,13 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <p className="mt-4 text-caption text-text-secondary">
+              {isVnpaySelected ? (
+                <p className="m-0 mt-3 text-caption text-text-secondary">
+                  {t('checkout_vnpay_total_includes_shipping')}
+                </p>
+              ) : null}
+
+              <p className={cn('text-caption text-text-secondary', isVnpaySelected ? 'mt-2' : 'mt-4')}>
                 {isVnpaySelected ? t('checkout_terms_hint_vnpay') : t('checkout_terms_hint')}
               </p>
 

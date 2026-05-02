@@ -20,6 +20,9 @@ import { parseOrderDescriptionJson } from '../../lib/orderDescriptionJson';
 import { notify } from '../../utils/notify';
 import type { Lang } from '../../utils/i18n';
 
+/** Đã xử lý COMPLETED trên tab Đơn hàng cho từng transaction (thay sessionStorage). */
+const vnpayOrdersTabSettledOnce = new Set<string>();
+
 const ORDER_TABS = [
   { id: 'all' as const },
   { id: 'pending_prep' as const },
@@ -494,9 +497,8 @@ export default function OrdersTab() {
     const tid = vnpayOrdersAwait.transactionPublicId;
 
     if (u === 'COMPLETED' && d.order?.id && d.order?.orderCode) {
-      const doneKey = `ecomx_vnpay_orders_settled_ok_${tid}`;
-      if (sessionStorage.getItem(doneKey)) return;
-      sessionStorage.setItem(doneKey, '1');
+      if (vnpayOrdersTabSettledOnce.has(tid)) return;
+      vnpayOrdersTabSettledOnce.add(tid);
       for (const k of vnpayOrdersAwait.lineKeys) {
         const p = parseCartLineKey(k);
         if (p) removeItem(p.productId, p.unitId);

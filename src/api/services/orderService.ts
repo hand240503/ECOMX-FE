@@ -34,6 +34,26 @@ function readNonEmptyString(value: unknown): string | undefined {
   return undefined;
 }
 
+/** `transactionPublicId` từ BE có thể là chuỗi hoặc số (ví dụ 42 / "42") — không dùng UUID do FE tạo. */
+function readTransactionPublicIdFromPayload(d: Record<string, unknown>): string | undefined {
+  const raw = d.transactionPublicId ?? d.transaction_public_id;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const s = String(Math.trunc(raw));
+    return s !== '' ? s : undefined;
+  }
+  return readNonEmptyString(raw);
+}
+
+function readPendingTotalFromPayload(d: Record<string, unknown>): number | undefined {
+  const raw = d.pendingTotal ?? d.pending_total;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const n = Number.parseFloat(raw.replace(',', '.'));
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
 function hasOrderCreatedShape(d: Record<string, unknown>): boolean {
   const id = asPositiveInt(d.id ?? d.orderId);
   const orderCode = d.orderCode ?? d.order_code;
@@ -79,20 +99,14 @@ function normalizeCreateOrderResult(raw: unknown): CreateOrderResult {
     const checkoutSessionId = asPositiveInt(
       d.checkoutSessionId ?? d.checkout_session_id
     );
-    const transactionPublicId = readNonEmptyString(
-      d.transactionPublicId ?? d.transaction_public_id
-    );
+    const transactionPublicId = readTransactionPublicIdFromPayload(d);
     if (checkoutSessionId != null && transactionPublicId) {
       const pmRaw = d.paymentMethod ?? d.payment_method;
       const paymentMethod =
         pmRaw != null && typeof pmRaw === 'object'
           ? (pmRaw as { id: number; name: string; code: string })
           : undefined;
-      const pendingTotalRaw = d.pendingTotal ?? d.pending_total;
-      const pendingTotal =
-        typeof pendingTotalRaw === 'number' && Number.isFinite(pendingTotalRaw)
-          ? pendingTotalRaw
-          : undefined;
+      const pendingTotal = readPendingTotalFromPayload(d);
       return {
         outcome: 'PENDING_VNPAY_PAYMENT',
         checkoutSessionId,

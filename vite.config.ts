@@ -5,13 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      /** OSRM public — tránh CORS khi dev; production cần proxy backend hoặc tự host. */
-      '/osrm': {
-        target: 'https://router.project-osrm.org',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/osrm/, '')
-      },
-      /** Nominatim — thêm User-Agent theo yêu cầu dịch vụ. */
+      /** Nominatim — thêm User-Agent theo yêu cầu dịch vụ (địa chỉ / geocoding). */
       '/nominatim': {
         target: 'https://nominatim.openstreetmap.org',
         changeOrigin: true,
@@ -20,7 +14,7 @@ export default defineConfig({
           proxy.on('proxyReq', (proxyReq) => {
             proxyReq.setHeader(
               'User-Agent',
-              'ecomx-fe-map-dev/0.0 (dev geocoding; contact project maintainer)'
+              'ecomx-fe/0.0 (geocoding; contact project maintainer)'
             );
           });
         }
