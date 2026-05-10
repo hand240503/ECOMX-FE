@@ -31,6 +31,8 @@ function HighlightedTitle({ text, highlight }: { text: string; highlight: string
 
 export interface ProductCardProps {
   name: string;
+  /** Hiển thị dưới tên SP (cùng style listing) */
+  brand?: string | null;
   image: string;
   price: number;
   originalPrice?: number;
@@ -45,10 +47,13 @@ export interface ProductCardProps {
   highlightKeyword?: string;
   /** PDP / danh sách — điều hướng tới chi tiết */
   to?: string;
+  /** Gắn thêm class vào thẻ article (ví dụ carousel: min-w-0) */
+  className?: string;
 }
 
 const ProductCard = ({
   name,
+  brand,
   image,
   price,
   originalPrice,
@@ -60,6 +65,7 @@ const ProductCard = ({
   variant = 'grid',
   highlightKeyword,
   to,
+  className,
 }: ProductCardProps) => {
   const { t } = useI18n();
   const [imgSrc, setImgSrc] = useState(image);
@@ -93,7 +99,13 @@ const ProductCard = ({
   );
 
   const body = (
-    <div className={cn('min-w-0', isList && 'flex flex-1 flex-col justify-between py-0.5')}>
+    <div
+      className={cn(
+        'min-w-0',
+        isList && 'flex flex-1 flex-col justify-between py-0.5',
+        !isList && 'flex flex-1 flex-col'
+      )}
+    >
       <h3
         className={cn(
           'line-clamp-2 text-title text-text-primary',
@@ -106,6 +118,13 @@ const ProductCard = ({
           name
         )}
       </h3>
+
+      {brand != null && brand.trim() !== '' && (
+        <p className="mb-1 line-clamp-1 text-caption text-text-secondary">
+          {t('pdp_brand_prefix')}{' '}
+          <span className="font-medium text-text-primary">{brand}</span>
+        </p>
+      )}
 
       <div className={cn('mb-2 mt-1 flex flex-wrap items-center gap-1', isList && 'mb-1 mt-1')}>
         <div className="flex items-center gap-0.5 text-warning">
@@ -132,8 +151,8 @@ const ProductCard = ({
 
       <div
         className={cn(
-          'mt-2 flex items-center justify-between text-caption text-text-secondary',
-          isList && 'mt-1'
+          'flex items-center justify-between text-caption text-text-secondary',
+          isList ? 'mt-1' : 'mt-auto pt-2'
         )}
       >
         <span className="truncate">{location}</span>
@@ -148,7 +167,8 @@ const ProductCard = ({
     <article
       className={cn(
         'group cursor-pointer rounded-md border border-border bg-surface transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-elevation-card',
-        isList ? 'flex gap-3 p-3' : 'p-3'
+        isList ? 'flex gap-3 p-3' : 'flex h-full min-h-0 flex-col p-3',
+        className
       )}
     >
       {imageBlock}
@@ -158,7 +178,7 @@ const ProductCard = ({
 
   if (to) {
     return (
-      <Link to={to} className="block text-inherit no-underline">
+      <Link to={to} className="block h-full min-h-0 text-inherit no-underline">
         {article}
       </Link>
     );

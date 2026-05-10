@@ -21,13 +21,13 @@ import {
   resolveCategoryByParam,
 } from '../../lib/categoryCatalog';
 import {
-  buildBrandGroupsBySubcategory,
   sortBrandsByName,
   sortCategoriesByName,
   type SubcategoryBrandGroup,
 } from '../../lib/categoryFilterBuckets';
 import {
   applyClientFilters,
+  enrichBrandOptionsWithCounts,
   sortProductsByMode,
   type ProductSortMode,
   uniqueBrandsFromProducts,
@@ -129,6 +129,16 @@ const CategoryProductsPage = () => {
     return sortProductsByMode(filtered, sort);
   }, [rawProducts, clientFilters, sort]);
 
+  const productsForPriceBuckets = useMemo(
+    () =>
+      applyClientFilters(rawProducts, {
+        ...clientFilters,
+        minPrice: null,
+        maxPrice: null,
+      }),
+    [rawProducts, clientFilters]
+  );
+
   const tagOptions = useMemo(() => uniqueTagsFromProducts(rawProducts), [rawProducts]);
 
   const subcategoriesSorted = useMemo(
@@ -136,19 +146,16 @@ const CategoryProductsPage = () => {
     [subcategories]
   );
 
+  /** Giống hot-sale/featured: một danh sách «Thương hiệu» phẳng; danh mục con vẫn ở hero. */
   const { brandGroups, flatBrandsNoSubs } = useMemo(() => {
-    if (!subcategoriesSorted.length) {
-      const flat = sortBrandsByName(
-        uniqueBrandsFromProducts(rawProducts).map((b) => ({ id: b.id, name: b.name }))
-      );
-      return { brandGroups: [] as SubcategoryBrandGroup[], flatBrandsNoSubs: flat };
-    }
-    const { groups, otherBrands } = buildBrandGroupsBySubcategory(
-      rawProducts,
-      subcategoriesSorted
+    const flat = sortBrandsByName(
+      uniqueBrandsFromProducts(rawProducts).map((b) => ({ id: b.id, name: b.name }))
     );
-    return { brandGroups: groups, flatBrandsNoSubs: otherBrands };
-  }, [rawProducts, subcategoriesSorted]);
+    return {
+      brandGroups: [] as SubcategoryBrandGroup[],
+      flatBrandsNoSubs: enrichBrandOptionsWithCounts(flat, rawProducts),
+    };
+  }, [rawProducts]);
 
   const breadcrumbItems: BreadcrumbItem[] = useMemo(() => {
     if (!displayCategory) return [];
@@ -231,9 +238,16 @@ const CategoryProductsPage = () => {
             <div className="space-y-4 py-6">
               <div className="h-28 animate-pulse rounded-md bg-border" />
               <div className="h-10 animate-pulse rounded-md bg-border" />
-              <div className="grid grid-cols-2 gap-3 tablet:grid-cols-3 desktop:grid-cols-4">
+              <div
+                className={cn(
+                  'grid gap-3 tablet:gap-4',
+                  view === 'list'
+                    ? 'grid-cols-1'
+                    : 'grid-cols-2 tablet:grid-cols-3 desktop:grid-cols-4'
+                )}
+              >
                 {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-                  <ProductSkeleton key={`cat-loading-${i}`} />
+                  <ProductSkeleton key={`cat-loading-${i}`} variant={view} />
                 ))}
               </div>
             </div>
@@ -297,6 +311,7 @@ const CategoryProductsPage = () => {
                       currentCategoryCode={displayCategory.code}
                       tagOptions={tagOptions}
                       url={url}
+                      priceFacetProducts={productsForPriceBuckets}
                     />
                   </div>
                 </aside>
@@ -350,7 +365,7 @@ const CategoryProductsPage = () => {
                     {!productsQuery.isError && showInitialSkeleton && (
                       <>
                         {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
-                          <ProductSkeleton key={`sk-${index}`} />
+                          <ProductSkeleton key={`sk-${index}`} variant={view} />
                         ))}
                       </>
                     )}
@@ -396,6 +411,7 @@ const CategoryProductsPage = () => {
                             to={`/products/${p.id}`}
                             variant={view}
                             name={card.name}
+                            brand={card.brand}
                             image={card.image}
                             price={card.price}
                             originalPrice={card.originalPrice}
@@ -437,23 +453,24 @@ const CategoryProductsPage = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="category-filter-sheet-title"
-            className="relative flex max-h-[85vh] w-full flex-col rounded-t-lg border-t border-primary/10 bg-surface shadow-dropdown"
+            className="relative max-h-[min(92vh,100dvh)] w-full overflow-y-auto overscroll-contain rounded-t-lg border-t border-primary/10 bg-surface shadow-dropdown"
           >
-            <div className="border-b border-border px-4 py-3">
+            <div className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-3">
               <h2 id="category-filter-sheet-title" className="text-heading text-text-primary">
                 {t('category_mobile_filter_sheet_title')}
               </h2>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+            <div className="px-4 py-2">
               <CategoryFilterPanel
                 brandGroups={brandGroups}
                 flatBrandsNoSubs={flatBrandsNoSubs}
                 currentCategoryCode={displayCategory.code}
                 tagOptions={tagOptions}
                 url={url}
+                priceFacetProducts={productsForPriceBuckets}
               />
             </div>
-            <div className="flex gap-3 border-t border-border p-4">
+            <div className="sticky bottom-0 z-10 flex gap-3 border-t border-border bg-surface p-4 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.06)]">
               <Button
                 type="button"
                 variant="profileOutline"

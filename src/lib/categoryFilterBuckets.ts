@@ -1,7 +1,7 @@
 import type { CategoryResponse } from '../api/types/category.types';
 import type { ProductFullResponse } from '../api/types/product.types';
 
-export type BrandOption = { id: number; name: string };
+export type BrandOption = { id: number; name: string; /** Số SP trong tập facet (vd. hot-sale) */ count?: number };
 
 export type SubcategoryBrandGroup = {
   subcategory: CategoryResponse;

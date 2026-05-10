@@ -1,4 +1,5 @@
 import type { ProductFullResponse } from '../api/types/product.types';
+import type { BrandOption } from './categoryFilterBuckets';
 
 export type ProductSortMode = 'popular' | 'newest' | 'price_asc' | 'price_desc' | 'rating';
 
@@ -90,6 +91,22 @@ export function uniqueBrandsFromProducts(products: ProductFullResponse[]) {
     if (p.brand) map.set(p.brand.id, { id: p.brand.id, name: p.brand.name });
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+}
+
+/** Gắn số lượng SP (theo `products`) cho từng thương hiệu — dùng facet sidebar «THƯƠNG HIỆU (n)». */
+export function enrichBrandOptionsWithCounts(
+  brands: BrandOption[],
+  products: ProductFullResponse[]
+): BrandOption[] {
+  const counts = new Map<number, number>();
+  for (const p of products) {
+    if (!p.brand) continue;
+    counts.set(p.brand.id, (counts.get(p.brand.id) ?? 0) + 1);
+  }
+  return brands.map((b) => ({
+    ...b,
+    count: counts.get(b.id) ?? 0,
+  }));
 }
 
 export function uniqueTagsFromProducts(products: ProductFullResponse[]) {

@@ -55,9 +55,7 @@ const CategorySidebarHero = ({
           </p>
           <div
             className={cn(
-              isSidebar
-                ? 'max-h-[13.5rem] overflow-y-auto overflow-x-hidden pr-0.5'
-                : '-mx-0.5 flex overflow-x-auto pb-1 scrollbar-hide'
+              isSidebar ? 'overflow-x-hidden pr-0.5' : '-mx-0.5 flex overflow-x-auto pb-1 scrollbar-hide'
             )}
           >
             <div

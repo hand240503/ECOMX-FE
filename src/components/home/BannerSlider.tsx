@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import slider2 from '../../assets/sliders/slider_2.webp';
-import slider4 from '../../assets/sliders/slider_4.webp';
+import slider2 from '../../assets/sliders/slider_1.png';
+import slider4 from '../../assets/sliders/slider_2.png';
 import slider5 from '../../assets/sliders/slider_5.webp';
 
 const BannerSlider = () => {
@@ -27,21 +27,21 @@ const BannerSlider = () => {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 3500);
+    }, 8000);
 
     return () => window.clearInterval(timer);
   }, [slides.length]);
 
   return (
     <section className="mb-4">
-      <div className="group relative h-[200px] w-full overflow-hidden rounded-md bg-background tablet:h-[320px] desktop:h-[360px] wide:h-[420px]">
+      <div className="group relative aspect-[3584/1184] w-full overflow-hidden rounded-md bg-background">
         {slides.map((slide, index) => (
           <img
             key={slide.id}
             src={slide.image}
             onClick={() => slide.url && window.open(slide.url, '_blank')}
             alt={`banner-${slide.id}`}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out
+            className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700 ease-in-out
               ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
             loading={index === 0 ? 'eager' : 'lazy'}
           />

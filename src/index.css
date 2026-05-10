@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  /* Tránh lệch ngang khi scrollbar xuất hiện — khớp với header/full-width */
+  scrollbar-gutter: stable;
+}
+
 * {
   margin: 0;
   padding: 0;

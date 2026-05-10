@@ -11,13 +11,13 @@ import { searchService } from '../../api/services/searchService';
 import ProductCard from '../../components/product/ProductCard';
 import ProductSkeleton from '../../components/product/ProductSkeleton';
 import { Button } from '../../components/ui/Button';
-import { ANONYMOUS_USER_ID } from '../../constants/recommendation';
 import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavigation';
 import { useAuth } from '../../app/auth/AuthProvider';
 import { SEARCH_PAGE_SIZE, useSearchUrlState } from '../../hooks/useSearchUrlState';
 import { useI18n } from '../../i18n/I18nProvider';
 import {
   applyClientFilters,
+  enrichBrandOptionsWithCounts,
   sortProductsByMode,
   uniqueBrandsFromProducts,
 } from '../../lib/categoryProductUtils';
@@ -39,7 +39,7 @@ const SKELETON_COUNT = 8;
 
 const SearchPage = () => {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { navigateWithLoading } = useRouteLoadingNavigation();
   const gridRef = useRef<HTMLDivElement>(null);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -59,7 +59,7 @@ const SearchPage = () => {
     ...urlActions
   } = url;
 
-  const userId = user?.id ?? ANONYMOUS_USER_ID;
+  const userId = isAuthenticated && user?.id != null ? user.id : undefined;
   const sessionId = useMemo(() => getOrCreateSessionId(), []);
 
   const recentSearches = useMemo(() => readSearchHistory(), [recentTick]);
@@ -103,10 +103,10 @@ const SearchPage = () => {
     totalElements === 0;
 
   const relatedQuery = useQuery({
-    queryKey: ['recommendations', 'search-empty', userId, sessionId],
+    queryKey: ['recommendations', 'search-empty', isAuthenticated ? userId : 'guest', sessionId],
     queryFn: ({ signal }) =>
       recommendationService.getHome({
-        userId,
+        ...(userId != null ? { userId } : {}),
         sessionId,
         offset: 0,
         limit: 10,
@@ -130,7 +130,13 @@ const SearchPage = () => {
   }, [rawProducts]);
 
   const flatBrands = useMemo(
-    () => sortBrandsByNameClient(uniqueBrandsFromProducts(rawProducts)),
+    () =>
+      enrichBrandOptionsWithCounts(
+        sortBrandsByNameClient(
+          uniqueBrandsFromProducts(rawProducts).map((b) => ({ id: b.id, name: b.name }))
+        ),
+        rawProducts
+      ),
     [rawProducts]
   );
 
@@ -143,6 +149,16 @@ const SearchPage = () => {
     const filtered = applyClientFilters(byCategory, clientFilters);
     return sortProductsByMode(filtered, sort);
   }, [byCategory, clientFilters, sort]);
+
+  const productsForPriceBuckets = useMemo(
+    () =>
+      applyClientFilters(byCategory, {
+        ...clientFilters,
+        minPrice: null,
+        maxPrice: null,
+      }),
+    [byCategory, clientFilters]
+  );
 
   const hasClientFilters = activeFilterCount > 0;
   const showInitialSkeleton =
@@ -374,6 +390,7 @@ const SearchPage = () => {
                           <ProductCard
                             to={`/products/${p.id}`}
                             name={card.name}
+                            brand={card.brand}
                             image={card.image}
                             price={card.price}
                             originalPrice={card.originalPrice}
@@ -432,6 +449,7 @@ const SearchPage = () => {
                         url={url}
                         categoryFacets={categoryFacets}
                         flatBrands={flatBrands}
+                        priceFacetProducts={productsForPriceBuckets}
                       />
                     )}
                   </aside>
@@ -471,7 +489,7 @@ const SearchPage = () => {
                         {showInitialSkeleton && (
                           <>
                             {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
-                              <ProductSkeleton key={`sk-${index}`} />
+                              <ProductSkeleton key={`sk-${index}`} variant={view} />
                             ))}
                           </>
                         )}
@@ -508,6 +526,7 @@ const SearchPage = () => {
                                 variant={view}
                                 highlightKeyword={q}
                                 name={card.name}
+                                brand={card.brand}
                                 image={card.image}
                                 price={card.price}
                                 originalPrice={card.originalPrice}
@@ -550,21 +569,22 @@ const SearchPage = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="search-filter-sheet-title"
-            className="relative flex max-h-[85vh] w-full flex-col rounded-t-lg border-t border-primary/10 bg-surface shadow-dropdown"
+            className="relative max-h-[min(92vh,100dvh)] w-full overflow-y-auto overscroll-contain rounded-t-lg border-t border-primary/10 bg-surface shadow-dropdown"
           >
-            <div className="border-b border-border px-4 py-3">
+            <div className="sticky top-0 z-10 border-b border-border bg-surface px-4 py-3">
               <h2 id="search-filter-sheet-title" className="text-heading text-text-primary">
                 {t('category_mobile_filter_sheet_title')}
               </h2>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+            <div className="px-4 py-2">
               <SearchFilterPanel
                 url={url}
                 categoryFacets={categoryFacets}
                 flatBrands={flatBrands}
+                priceFacetProducts={productsForPriceBuckets}
               />
             </div>
-            <div className="flex gap-3 border-t border-border p-4">
+            <div className="sticky bottom-0 z-10 flex gap-3 border-t border-border bg-surface p-4 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.06)]">
               <Button
                 type="button"
                 variant="profileOutline"

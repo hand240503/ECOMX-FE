@@ -3,7 +3,17 @@ import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axio
 import { tokenStorage } from '../../utils/tokenStorage';
 import { API_ENDPOINTS } from './apiEndpoints';
 
-const BASE_URL = 'http://localhost:8080/api/v1';
+function stripTrailingSlashes(s: string): string {
+  return s.replace(/\/+$/, '');
+}
+
+/** Base URL API v1 (cùng giá trị với axios). Override: `VITE_API_V1_BASE_URL`. */
+export const API_V1_BASE_URL = stripTrailingSlashes(
+  (import.meta.env.VITE_API_V1_BASE_URL as string | undefined)?.trim() ||
+    'http://localhost:8080/api/v1'
+);
+
+const BASE_URL = API_V1_BASE_URL;
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;

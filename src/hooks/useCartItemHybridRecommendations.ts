@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { recommendationService } from '../api/services/recommendationService';
 import { useAuth } from '../app/auth/AuthProvider';
-import { ANONYMOUS_USER_ID } from '../constants/recommendation';
 import { getOrCreateSessionId } from '../lib/sessionId';
 import type { ProductFullResponse } from '../api/types/product.types';
 
@@ -53,8 +52,8 @@ function mergeItemHybridBatches(
 export type CartRecommendationsSource = 'hybrid' | 'home';
 
 export function useCartRecommendationsWithHomeFallback(cartProductIds: number[]) {
-  const { user } = useAuth();
-  const userId = user?.id ?? ANONYMOUS_USER_ID;
+  const { user, isAuthenticated } = useAuth();
+  const userId = isAuthenticated && user?.id != null ? user.id : undefined;
   const sessionId = useMemo(() => getOrCreateSessionId(), []);
 
   const idKey = useMemo(
@@ -63,7 +62,7 @@ export function useCartRecommendationsWithHomeFallback(cartProductIds: number[])
   );
 
   return useQuery({
-    queryKey: ['recommendations', 'cart', 'item-hybrid', userId, sessionId, idKey],
+    queryKey: ['recommendations', 'cart', 'item-hybrid', isAuthenticated ? userId : 'guest', sessionId, idKey],
     queryFn: async ({ signal }): Promise<{ source: CartRecommendationsSource; products: ProductFullResponse[] }> => {
       if (cartProductIds.length === 0) {
         return { source: 'home', products: [] };
@@ -77,7 +76,7 @@ export function useCartRecommendationsWithHomeFallback(cartProductIds: number[])
         return { source: 'hybrid', products: merged };
       }
       const home = await recommendationService.getHome({
-        userId,
+        ...(userId != null ? { userId } : {}),
         sessionId,
         offset: 0,
         limit: HOME_LIMIT,

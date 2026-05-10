@@ -38,6 +38,18 @@ export const API_ENDPOINTS = {
      * @see docs/API_products_by_ids_FE.md
      */
     BY_IDS: '/products/by-ids',
+    /**
+     * Backend cũng có variant query string: `GET /products/by-ids?ids=1,2,3` (FE hiện chưa dùng).
+     * FE chỉ khai báo path, phần `?ids=` sẽ được build từ service nếu cần.
+     */
+    BY_IDS_QUERY: '/products/by-ids',
+    /** `GET ?limit=&all=` — `is_featured` / `hot_sale`. @see docs/FRONTEND_PRODUCT_FEATURED_HOT_SALE.md */
+    IS_FEATURED: '/products/is-featured',
+    HOT_SALE: '/products/hot-sale',
+    /** Backend có nhưng FE hiện chưa dùng */
+    FEATURED: '/products/featured',
+    /** Backend có nhưng FE hiện chưa dùng */
+    BEST_SELLERS: '/products/best-sellers',
   },
 
   RECOMMENDATIONS: {
@@ -48,6 +60,12 @@ export const API_ENDPOINTS = {
      * @see docs/API_recommendation_item_hybrid_FE.md
      */
     ITEM_HYBRID: (productId: number | string) => `/recommendations/item-hybrid/${productId}`,
+    /** Backend có nhưng FE hiện chưa dùng */
+    PDP: (productId: number | string) => `/recommendations/pdp/${productId}`,
+    /** Backend có nhưng FE hiện chưa dùng */
+    POST_PURCHASE: (productId: number | string) => `/recommendations/post-purchase/${productId}`,
+    /** Backend có nhưng FE hiện chưa dùng */
+    SESSION: '/recommendations/session',
   },
 
   /**
@@ -74,6 +92,8 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number | string) => `/orders/${id}`,
     CANCEL: (id: number | string) => `/orders/${id}/cancel`,
     RETURN_REQUEST: (id: number | string) => `/orders/${id}/return-request`,
+    /** Backend có nhưng FE hiện chưa dùng */
+    CONFIRM_PAYMENT: (id: number | string) => `/orders/${id}/confirm-payment`,
     /** @see docs/VNPAY_CHECKOUT_SESSIONS_FE_GUIDE.md */
     VNPAY_PENDING: (transactionPublicId: string) => `/orders/vnpay-pending/${transactionPublicId}`,
     VNPAY_PENDING_TRANSACTION_STATUS: (transactionPublicId: string) =>
@@ -95,5 +115,57 @@ export const API_ENDPOINTS = {
   /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §1 */
   SHIPPING: {
     DISTANCE_TO_WAREHOUSE: '/shipping/distance-to-warehouse',
+  },
+
+  /** @see docs/COLLECTOR_LOG_API.md */
+  COLLECTOR_LOGS: '/collector-logs',
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_BY_ID: (id: number | string) => `/collector-logs/${id}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_BY_USER: (userId: number | string) => `/collector-logs/user/${userId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_BY_PRODUCT: (productId: number | string) => `/collector-logs/product/${productId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_BY_EVENT: (event: string) => `/collector-logs/event/${event}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_BY_SESSION: (sessionId: string) => `/collector-logs/session/${sessionId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_DATE_RANGE: '/collector-logs/date-range',
+  /** Backend có nhưng FE hiện chưa dùng */
+  COLLECTOR_LOGS_FILTER: '/collector-logs/filter',
+
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS: '/user-ratings',
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS_BY_ID: (id: number | string) => `/user-ratings/${id}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS_BY_USER_PRODUCT: (userId: number | string, productId: number | string) =>
+    `/user-ratings/user/${userId}/product/${productId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS_BY_USER: (userId: number | string) => `/user-ratings/user/${userId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS_BY_PRODUCT: (productId: number | string) => `/user-ratings/product/${productId}`,
+  /** Backend có nhưng FE hiện chưa dùng */
+  USER_RATINGS_PRODUCT_AVERAGE: (productId: number | string) => `/user-ratings/product/${productId}/average`,
+
+  /** Backend có nhưng FE hiện chưa dùng */
+  ADMIN: {
+    USERS: '/admin/users',
+    USER_BY_ID: (id: number | string) => `/admin/users/${id}`,
+  },
+
+  /**
+   * Upload: `POST` multipart — `files`, optional `entityId` + `entityType` (SP = 100000),
+   * optional `mainFileIndex` (0-based, file phải là ảnh; video/PDF → 400).
+   */
+  DOCUMENT: {
+    UPLOAD: '/document/upload',
+    BY_FILENAME: (filename: string) => `/document/${filename}`,
+  },
+
+  /** Backend có nhưng FE hiện chưa dùng */
+  JOB: {
+    ROOT: '/job',
+    DETAILS: '/job/details',
   },
 };

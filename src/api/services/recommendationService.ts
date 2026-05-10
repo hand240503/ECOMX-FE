@@ -3,7 +3,8 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type { ProductFullResponse } from '../types/product.types';
 
 export interface HomeRecommendationsParams {
-  userId: number;
+  /** Đã đăng nhập: bắt buộc (> 0). Guest: không gửi (xem FRONTEND_GUEST_HOME_RECOMMENDATIONS.md). */
+  userId?: number;
   sessionId?: string;
   offset?: number;
   limit?: number;
@@ -12,15 +13,17 @@ export interface HomeRecommendationsParams {
 
 export const recommendationService = {
   /**
-   * Mảng thô `ProductFullResponse[]` (không `APIResponse`) — docs/api_search.md §4, api_home.md.
+   * Mảng thô `ProductFullResponse[]` (không `APIResponse`).
+   * Guest: `GET .../home?sessionId=...` — không `userId`.
+   * Đã login: `?userId=...&sessionId=...` — FRONTEND_COLLECTOR_AND_HOME_RECOMMENDATIONS.md.
    */
   async getHome(params: HomeRecommendationsParams): Promise<ProductFullResponse[]> {
     const { data } = await axiosInstance.get<ProductFullResponse[]>(API_ENDPOINTS.RECOMMENDATIONS.HOME, {
       params: {
-        userId: params.userId,
-        sessionId: params.sessionId,
+        ...(params.userId != null && params.userId > 0 ? { userId: params.userId } : {}),
+        ...(params.sessionId != null && params.sessionId !== '' ? { sessionId: params.sessionId } : {}),
         offset: params.offset ?? 0,
-        limit: params.limit ?? 20,
+        limit: params.limit ?? 25,
       },
       signal: params.signal,
     });

@@ -46,8 +46,10 @@ const PRODUCTS_CATEGORY_PATH_PREFIX = '/products/category/';
  * Đọc `category` từ path `/products/category/:id` (chỉ khi pathname khớp) hoặc query `?category=`.
  * Theo `docs/home-category-product-list-flow.md`, query thường là **code**; số thuần vẫn hỗ trợ.
  * Path segment chỉ tin khi pathname đúng — tránh `useParams` trả id cũ sau khi chuyển sang `/products?category=…`.
+ *
+ * `promoListing`: trang `/products/hot-sale`, `/products/featured` — chỉ đọc sort/page/lọc từ query, không gắn `category`.
  */
-export function useProductListUrlState() {
+export function useProductListUrlState(options?: { promoListing?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const params = useParams<{ categoryId?: string }>();
@@ -61,7 +63,10 @@ export function useProductListUrlState() {
   const fromQuery = searchParams.get('category')?.trim() ?? '';
   const fromLocationSearch =
     new URLSearchParams(location.search).get('category')?.trim() ?? '';
-  const categoryParam = (pathCategorySegment || fromQuery || fromLocationSearch).trim();
+  const categoryParam =
+    options?.promoListing === true
+      ? ''
+      : (pathCategorySegment || fromQuery || fromLocationSearch).trim();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
   const sortRaw = searchParams.get('sort');
   const sort: ProductSortMode = isSortValue(sortRaw) ? sortRaw : DEFAULT_SORT;

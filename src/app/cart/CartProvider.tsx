@@ -20,6 +20,7 @@ import {
   setLineQuantity,
   totalQuantityInCart
 } from '../../lib/cartStorage';
+import { LOGOUT_STORAGE_CLEANUP_EVENT } from '../../lib/logoutStorageCleanup';
 
 export type CartContextValue = {
   lines: CartLine[];
@@ -43,6 +44,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
+    const onLogoutCleanup = () => setLines(loadCartLines());
+    window.addEventListener(LOGOUT_STORAGE_CLEANUP_EVENT, onLogoutCleanup);
+    return () => window.removeEventListener(LOGOUT_STORAGE_CLEANUP_EVENT, onLogoutCleanup);
   }, []);
 
   const addItem = useCallback(

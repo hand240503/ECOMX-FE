@@ -79,6 +79,7 @@ const CartItemHybridProductFeed = ({ cartProductIds, title }: CartItemHybridProd
               key={product.id}
               to={`/products/${product.id}`}
               name={product.name}
+              brand={product.brand}
               image={product.image}
               price={product.price}
               originalPrice={product.originalPrice}

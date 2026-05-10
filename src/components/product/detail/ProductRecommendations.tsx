@@ -219,6 +219,7 @@ export function ProductRecommendations({
                             <ProductCard
                               to={`/products/${p.id}`}
                               name={card.name}
+                              brand={card.brand}
                               image={card.image}
                               price={card.price}
                               originalPrice={card.originalPrice}
@@ -254,6 +255,7 @@ export function ProductRecommendations({
                     <ProductCard
                       to={`/products/${p.id}`}
                       name={card.name}
+                      brand={card.brand}
                       image={card.image}
                       price={card.price}
                       originalPrice={card.originalPrice}

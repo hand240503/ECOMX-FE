@@ -43,6 +43,10 @@ import {
   type PolicyBadgeVariant,
   type PolicyDisplayIcon
 } from '../../lib/productPolicies';
+import {
+  reportCollectorProductDetailsOnce,
+  reportCollectorProductMoreDetailsOnce
+} from '../../lib/collectorBehavior';
 
 function truncateLabel(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -228,6 +232,23 @@ const ProductDetailPage = () => {
     setDescExpanded(false);
   }, [productId, detailModel?.descriptionHtml]);
 
+  useEffect(() => {
+    if (!detailModel?.id) return;
+    reportCollectorProductDetailsOnce(detailModel.id);
+  }, [detailModel?.id]);
+
+  useEffect(() => {
+    const pid = detailModel?.id;
+    if (!pid) return;
+    const onScroll = () => {
+      if (window.scrollY < 100) return;
+      reportCollectorProductMoreDetailsOnce(pid, 'scroll');
+      window.removeEventListener('scroll', onScroll);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [detailModel?.id]);
+
   const showDescriptionExpand =
     descriptionPlainLen >= PDP_DESC_MIN_PLAIN_CHARS && descHasOverflow;
   const descriptionCollapsed = showDescriptionExpand && !descExpanded;
@@ -288,6 +309,7 @@ const ProductDetailPage = () => {
         unitPrice: selectedPrice.currentValue,
         quantity
       });
+      reportCollectorProductMoreDetailsOnce(detailModel.id, 'add_to_cart');
       toast.success(t('pdp_add_cart_ok'));
     } catch {
       toast.error(t('pdp_cart_error'));
@@ -312,6 +334,7 @@ const ProductDetailPage = () => {
           quantity
         });
       });
+      reportCollectorProductMoreDetailsOnce(detailModel.id, 'add_to_cart');
       const key = cartLineKey({ productId: detailModel.id, unitId: selectedPrice.unitId });
       if (!isAuthenticated) {
         saveCheckoutLineKeys([key]);
@@ -556,6 +579,13 @@ const ProductDetailPage = () => {
                         )}
                       </div>
 
+                      {detailModel.shortDescriptionHtml ? (
+                        <div
+                          className="mt-4 max-w-none rounded-xl border border-border/70 bg-background/35 p-4 text-body text-text-secondary [&_a]:text-primary [&_img]:max-w-full [&_p]:mb-2 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5"
+                          dangerouslySetInnerHTML={{ __html: detailModel.shortDescriptionHtml }}
+                        />
+                      ) : null}
+
                       <div className="mt-4 rounded-xl border border-border/70 bg-background/50 p-4">
                         <PriceDisplay
                           tone="neutral"
@@ -649,7 +679,11 @@ const ProductDetailPage = () => {
                         id="pdp-description"
                         className="rounded-2xl border border-border bg-surface p-5 shadow-[0_2px_16px_rgba(15,23,42,0.05)] tablet:p-6"
                       >
-                        <h2 className="text-heading text-text-primary">{t('pdp_description_title')}</h2>
+                        <h2 className="text-heading text-text-primary">
+                          {detailModel.detailFromLongDescription
+                            ? t('pdp_l_description_section_title')
+                            : t('pdp_description_title')}
+                        </h2>
                         <div className="my-4 h-px bg-border/90" />
                         <div
                           className="relative overflow-hidden"

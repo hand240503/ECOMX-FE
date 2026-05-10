@@ -35,12 +35,36 @@ export interface PolicyResponse {
 }
 
 /**
+ * Loại file document — JSON `type`. Upload mới map 1|2|3; `0` là legacy (coi như ảnh gallery).
+ * `isMain` chỉ là cover khi `type === 1` hoặc legacy `0`; video `2` / tài liệu `3` không làm ảnh đại diện.
+ */
+export type DocumentKind = 0 | 1 | 2 | 3;
+
+export interface ProductDocumentAttachment {
+  id: number;
+  fileName: string;
+  filePath: string;
+  fileSize?: string | number | null;
+  type: DocumentKind;
+  /** JSON `isMain` — ảnh chính (cover) chỉ khi kèm `type` 1 hoặc legacy 0. */
+  isMain?: boolean | null;
+}
+
+/** Alias tên gọi trong tài liệu BE / hướng dẫn FE (isMain). */
+export type ProductDocument = ProductDocumentAttachment;
+
+/**
  * Theo api_home.md; backend có thể bổ sung thêm field ảnh — resolve trong getProductImageUrl.
  */
 export interface ProductFullResponse {
   id: number;
   productName: string;
+  /** Mô tả ngắn */
   description: string;
+  /** Mô tả dài / rich text (PDP chi tiết), tách với `description` — JSON có thể là `l_description` hoặc `lDescription`. */
+  l_description?: string | null;
+  /** Một số cấu hình serialization trả camelCase cho cùng nội dung `l_description`. */
+  lDescription?: string | null;
   status: number;
   isFeatured: boolean;
   soldCount: number;
@@ -54,7 +78,10 @@ export interface ProductFullResponse {
   recommendationSource: string | null;
   averageRating: number | null;
   ratingCount: number | null;
-  /** Một số bản API có thể trả — không có trong tài liệu tối thiểu */
+  /** Gallery ảnh (BE: main trước, sau đó theo id). Không gồm video/tài liệu. */
+  imageUrls?: string[] | null;
+  /** Chi tiết file đính kèm; gallery ảnh: `type` 0 hoặc 1 (xem § DocumentKind). */
+  documents?: ProductDocumentAttachment[] | null;
   thumbnailUrl?: string | null;
   mainImageUrl?: string | null;
   imageUrl?: string | null;

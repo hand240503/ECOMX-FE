@@ -33,6 +33,7 @@ import MainFooter from '../layout/footer/MainFooter';
 import MainHeader from '../layout/header/MainHeader';
 import { userAddressesQueryKey } from '../hooks/useUserAddresses';
 import { notify } from '../utils/notify';
+import { reportCollectorBuyOnceForLines } from '../lib/collectorBehavior';
 
 const checkoutQtyClass =
   '!h-8 !shadow-none rounded-sm [&_button]:!h-8 [&_button]:!w-7 [&_input]:!h-8 [&_input]:!w-9 [&_input]:!text-sm tablet:justify-self-center';
@@ -221,6 +222,7 @@ export default function CheckoutPage() {
       }
       const selectedPm = paymentMethodOptions.find((m) => m.id === paymentMethodId);
       if (!selectedPm) throw new Error('validation');
+      reportCollectorBuyOnceForLines(checkoutLines);
       /** Có `userAddressId` → BE tự ghép địa chỉ trên đơn; không gửi mỗi chuỗi snapshot. */
       const orderBody: CreateOrderRequestBody['order'] = {
         description: stringifyOrderDescription({
@@ -504,8 +506,8 @@ export default function CheckoutPage() {
                   <p className="m-0 text-body font-medium text-text-primary">{t('checkout_shipping_method')}</p>
                   <p className="m-0 text-caption text-text-secondary">{t('checkout_shipping_eta')}</p>
                   {shippingQuoteQuery.isSuccess &&
-                  shippingQuoteQuery.data &&
-                  (shippingQuoteQuery.data.distanceKilometers > 0 || shippingQuoteQuery.data.distanceMeters > 0) ? (
+                    shippingQuoteQuery.data &&
+                    (shippingQuoteQuery.data.distanceKilometers > 0 || shippingQuoteQuery.data.distanceMeters > 0) ? (
                     <p className="m-0 mt-1 text-caption text-text-secondary">
                       {t('checkout_shipping_distance_km').replace(
                         '{km}',

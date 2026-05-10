@@ -18,6 +18,7 @@ import type {
   VerifyOTPRequest
 } from '../types/auth.types';
 import type { ApiResponse } from '../types/common.types';
+import { clearClientStorageOnLogout } from '../../lib/logoutStorageCleanup';
 import { tokenStorage } from '../../utils/tokenStorage';
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
@@ -147,6 +148,7 @@ export const authService = {
       }
     } finally {
       tokenStorage.clear();
+      clearClientStorageOnLogout();
     }
   },
 

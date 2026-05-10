@@ -7,8 +7,6 @@ import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
 import { useHomeRecommendations, useHomeRecommendationsSnapshot } from '../../hooks/useHomeRecommendations';
 import { Button } from '../ui/Button';
 
-const SKELETON_COUNT = 12;
-
 type ProductFeedProps = {
   /** Tiêu đề khối (mặc định: deal trang chủ) */
   title?: string;
@@ -37,6 +35,7 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    pageSize,
   } = limited
     ? {
         products: snapshotQuery.data ?? [],
@@ -49,6 +48,7 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
         },
         hasNextPage: false,
         isFetchingNextPage: false,
+        pageSize: infiniteQuery.pageSize,
       }
     : infiniteQuery;
 
@@ -70,7 +70,8 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
     return t('common_unexpected_error');
   }, [error, t]);
 
-  const skeletonCount = limited && maxItems != null ? Math.min(maxItems, 12) : SKELETON_COUNT;
+  const skeletonCount =
+    limited && maxItems != null ? Math.min(maxItems, pageSize) : pageSize;
 
   return (
     <section className="mt-4 rounded-md border border-border bg-surface shadow-header">
@@ -122,6 +123,7 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
               key={product.id}
               to={`/products/${product.id}`}
               name={product.name}
+              brand={product.brand}
               image={product.image}
               price={product.price}
               originalPrice={product.originalPrice}

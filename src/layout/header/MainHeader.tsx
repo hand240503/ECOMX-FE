@@ -168,7 +168,7 @@ const MainHeader = () => {
       className="z-40 w-full border-b bg-white shadow-[0_1px_0_rgba(15,23,42,0.06)]"
     >
       <div className="w-full flex justify-center">
-        <div className="mx-auto flex w-full max-w-container items-start gap-6 py-3">
+        <div className="mx-auto flex w-full max-w-container items-start gap-6 px-4 py-3 tablet:px-6">
           <div onClick={() => navigateWithLoading('/')} className="w-[110px] cursor-pointer flex flex-col items-center justify-center flex-shrink-0">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-4 py-2.5 w-full flex justify-center shadow-md hover:shadow-lg transition-shadow">
               <span className="text-white font-black text-2xl leading-none tracking-tight">

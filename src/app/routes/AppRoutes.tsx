@@ -27,6 +27,7 @@ import ForgotPasswordPage from '../../pages/auth/ForgotPasswordPage';
 import VerifyForgotOtpPage from '../../pages/auth/VerifyForgotOtpPage';
 import ResetPasswordPage from '../../pages/auth/ResetPasswordPage';
 import ProductDetailPage from '../../pages/product/ProductDetailPage';
+import HomePromoListPage from '../../pages/promo/HomePromoListPage';
 import CartPage from '../../pages/CartPage';
 import CheckoutPage from '../../pages/CheckoutPage';
 import VnpayCallbackPage from '../../pages/payment/VnpayCallbackPage';
@@ -65,6 +66,9 @@ const router = createBrowserRouter(
       <Route path="search" element={<SearchPage />} />
 
       <Route path="products/category/:categoryId" element={<CategoryProductsPage />} />
+      <Route path="products/hot-sale" element={<HomePromoListPage variant="hotSale" />} />
+      <Route path="products/featured" element={<HomePromoListPage variant="featured" />} />
+
       <Route path="products/:productId" element={<ProductDetailPage />} />
       <Route path="products" element={<CategoryProductsPage />} />
 

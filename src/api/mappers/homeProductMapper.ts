@@ -6,6 +6,8 @@ import { getProductImageUrl } from '../../lib/productImage';
 export interface HomeProductCardModel {
   id: number;
   name: string;
+  /** Tên thương hiệu — `ProductCard` / promo row */
+  brand: string | null;
   image: string;
   price: number;
   originalPrice?: number;
@@ -23,9 +25,12 @@ export function mapProductFullToCard(product: ProductFullResponse): HomeProductC
   const discount =
     old != null && old > current ? Math.round((1 - current / old) * 100) : undefined;
 
+  const brandName = product.brand?.name?.trim() ?? null;
+
   return {
     id: product.id,
     name: product.productName,
+    brand: brandName && brandName.length > 0 ? brandName : null,
     image: getProductImageUrl(product) ?? DEFAULT_PRODUCT_IMAGE,
     price: current,
     originalPrice: old != null && old > current ? old : undefined,

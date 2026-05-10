@@ -24,6 +24,16 @@ export class ProductNotFoundError extends Error {
 
 const BY_IDS_MAX = 200;
 
+/** Trần `limit` theo docs/FRONTEND_PRODUCT_FEATURED_HOT_SALE.md; backend hiện cần cả `limit` kèm `all=true` mới trả đủ danh sách. */
+const FEATURED_HOT_SALE_MAX_LIMIT = 500;
+
+function featuredHotQueryParams(all?: boolean): Record<string, boolean | number> {
+  if (all === true) {
+    return { all: true, limit: FEATURED_HOT_SALE_MAX_LIMIT };
+  }
+  return {};
+}
+
 /**
  * Một lần (`POST /products/by-ids`) với tối đa 200 id; nhiều hơn thì tự tách mảng.
  * Thứ tự phần tử theo từng lô, lần lượt nối kết quả từ server (theo từng lô theo tài liệu).
@@ -183,5 +193,49 @@ export const productService = {
       message: typeof data.message === 'string' ? data.message : '',
       spellSuggestion,
     };
+  },
+
+  /**
+   * `GET /products/is-featured?all=` — `all=true` trả toàn bộ; `all=false` (mặc định) hành vi mặc định backend (vd. giới hạn preview).
+   * @see docs/FRONTEND_PRODUCT_FEATURED_HOT_SALE.md
+   */
+  async getIsFeatured(
+    params?: { all?: boolean; signal?: AbortSignal }
+  ): Promise<ProductFullResponse[]> {
+    const { all = false, signal } = params ?? {};
+    const { data } = await axiosInstance.get<ApiResponse<ProductFullResponse[]>>(
+      API_ENDPOINTS.PRODUCT.IS_FEATURED,
+      { params: featuredHotQueryParams(all), signal }
+    );
+    if (data.success === false) {
+      throw new Error(
+        typeof data.message === 'string' && data.message.trim() !== ''
+          ? data.message.trim()
+          : 'getIsFeatured failed'
+      );
+    }
+    return Array.isArray(data.data) ? data.data : [];
+  },
+
+  /**
+   * `GET /products/hot-sale?all=` — cùng quy ước `all`.
+   * @see docs/FRONTEND_PRODUCT_FEATURED_HOT_SALE.md
+   */
+  async getHotSale(
+    params?: { all?: boolean; signal?: AbortSignal }
+  ): Promise<ProductFullResponse[]> {
+    const { all = false, signal } = params ?? {};
+    const { data } = await axiosInstance.get<ApiResponse<ProductFullResponse[]>>(
+      API_ENDPOINTS.PRODUCT.HOT_SALE,
+      { params: featuredHotQueryParams(all), signal }
+    );
+    if (data.success === false) {
+      throw new Error(
+        typeof data.message === 'string' && data.message.trim() !== ''
+          ? data.message.trim()
+          : 'getHotSale failed'
+      );
+    }
+    return Array.isArray(data.data) ? data.data : [];
   },
 };

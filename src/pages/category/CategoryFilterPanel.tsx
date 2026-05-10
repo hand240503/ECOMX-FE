@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown } from 'lucide-react';
+import type { ProductFullResponse } from '../../api/types/product.types';
+import { FilterFacetCheckbox } from '../../components/filters/FilterFacetCheckbox';
+import { PriceBucketRadioList } from '../../components/filters/PriceBucketRadioList';
 import {
   groupBrandGroupsBySubcategoryLetter,
-  groupFlatBrandsByLetter,
   type BrandOption,
   type SubcategoryBrandGroup,
 } from '../../lib/categoryFilterBuckets';
@@ -23,6 +25,7 @@ interface CategoryFilterPanelProps {
   currentCategoryCode: string;
   tagOptions: string[];
   url: ProductListUrlSnapshot;
+  priceFacetProducts: ProductFullResponse[];
 }
 
 /** Hàng accordion kiểu sidebar Tiki: tiêu đề trái, chevron phải, gạch ngang */
@@ -37,26 +40,26 @@ function SidebarAccordionRow({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border last:border-b-0">
+    <div className="border-b border-neutral-200/80 last:border-b-0">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors duration-200 hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors duration-200 hover:bg-neutral-50/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#e67e22]/35"
       >
-        <span className="text-body font-semibold leading-snug text-text-primary">{title}</span>
+        <span className="text-[13px] font-bold uppercase leading-snug tracking-wide text-neutral-900">
+          {title}
+        </span>
         <ChevronDown
           className={cn(
-            'h-4 w-4 shrink-0 text-text-secondary transition-transform duration-200 ease-in-out',
+            'h-4 w-4 shrink-0 text-neutral-500 transition-transform duration-200 ease-in-out',
             open ? 'rotate-180' : ''
           )}
           aria-hidden
         />
       </button>
       {open && (
-        <div className="border-t border-border bg-background/30 px-4 py-3">
-          {children}
-        </div>
+        <div className="border-t border-neutral-200/90 bg-[#fafafa] px-4 py-2">{children}</div>
       )}
     </div>
   );
@@ -129,7 +132,7 @@ function LetterIndexRow({
 
 function LetterIndexShell({ children }: { children: ReactNode }) {
   return (
-    <div className="max-h-[min(70vh,28rem)] overflow-x-hidden overflow-y-auto rounded-md border border-border bg-background/50 shadow-inner">
+    <div className="overflow-x-hidden rounded-md border border-neutral-200/80 bg-white/70">
       <div className="divide-y divide-border">{children}</div>
     </div>
   );
@@ -144,22 +147,62 @@ function BrandCheckboxList({
   selectedIds: number[];
   onToggle: (id: number) => void;
 }) {
+  const { t } = useI18n();
   if (!brands.length) return null;
   return (
-    <ul className="space-y-1.5">
-      {brands.map((b) => (
-        <li key={b.id}>
-          <label className="flex cursor-pointer items-center gap-2 rounded-sm py-0.5 text-caption text-text-primary transition-colors hover:bg-primary/5">
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(b.id)}
-              onChange={() => onToggle(b.id)}
-              className="h-4 w-4 rounded-sm border-border text-primary focus:ring-primary"
-            />
-            <span className="truncate">{b.name}</span>
-          </label>
-        </li>
-      ))}
+    <ul className="divide-y divide-neutral-200/95">
+      {brands.map((b) => {
+        const selected = selectedIds.includes(b.id);
+        return (
+          <li key={b.id}>
+            <div
+              className={cn(
+                'flex items-center gap-3 py-3 transition-colors duration-150',
+                selected && 'relative -mx-1 rounded-md bg-[#fff8f4] px-1 ring-1 ring-[#fde8dc]/90'
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={selected}
+                aria-label={
+                  typeof b.count === 'number' ? `${b.name} (${b.count})` : b.name
+                }
+                onClick={() => onToggle(b.id)}
+                className="shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/60 focus-visible:ring-offset-1"
+              >
+                <FilterFacetCheckbox checked={selected} />
+              </button>
+              <div className="min-w-0 flex-1 text-[13px] leading-snug tracking-tight">
+                <button
+                  type="button"
+                  onClick={() => onToggle(b.id)}
+                  className="inline max-w-full text-left focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/50"
+                >
+                  <span className="font-medium text-neutral-900">{b.name}</span>
+                  {typeof b.count === 'number' && (
+                    <span className="font-normal text-neutral-500"> ({b.count})</span>
+                  )}
+                </button>
+                {selected && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggle(b.id);
+                      }}
+                      className="inline align-baseline text-[13px] font-medium text-[#c0392b] decoration-transparent underline-offset-2 hover:text-[#a93226] hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/45"
+                    >
+                      {t('category_filter_remove_choice')}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -205,6 +248,7 @@ const CategoryFilterPanel = ({
   currentCategoryCode,
   tagOptions,
   url,
+  priceFacetProducts,
 }: CategoryFilterPanelProps) => {
   const { t } = useI18n();
   const {
@@ -237,30 +281,6 @@ const CategoryFilterPanel = ({
     [brandGroups]
   );
 
-  const flatBrandLetterBlocks = useMemo(
-    () => groupFlatBrandsByLetter(flatBrandsNoSubs),
-    [flatBrandsNoSubs]
-  );
-
-  const minPriceRef = useRef<HTMLInputElement>(null);
-  const maxPriceRef = useRef<HTMLInputElement>(null);
-  const priceFieldKey = `${clientFilters.minPrice ?? ''}_${clientFilters.maxPrice ?? ''}`;
-
-  const applyPrice = () => {
-    const rawMin = minPriceRef.current?.value.trim() ?? '';
-    const rawMax = maxPriceRef.current?.value.trim() ?? '';
-    const minV = rawMin === '' ? null : Number(rawMin.replace(/\D/g, ''));
-    const maxV = rawMax === '' ? null : Number(rawMax.replace(/\D/g, ''));
-    const minOk = minV == null || Number.isFinite(minV);
-    const maxOk = maxV == null || Number.isFinite(maxV);
-    if (!minOk || !maxOk) return;
-    if (minV != null && maxV != null && minV > maxV) {
-      setPriceRange(maxV, minV);
-      return;
-    }
-    setPriceRange(minV, maxV);
-  };
-
   const hasGroupedNav = brandGroups.length > 0;
   const showOtherBucket = hasGroupedNav && flatBrandsNoSubs.length > 0;
   const showFlatBrandsOnly = !hasGroupedNav && flatBrandsNoSubs.length > 0;
@@ -271,9 +291,9 @@ const CategoryFilterPanel = ({
     : t('category_filter_brands');
 
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-surface shadow-header">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3.5">
-        <h2 className="text-title font-bold text-text-primary">
+    <div className="overflow-x-hidden rounded-md border border-neutral-200/90 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-neutral-200/90 px-4 py-3.5">
+        <h2 className="text-[15px] font-bold uppercase tracking-wide text-neutral-900">
           {t('category_filter_card_heading')}
         </h2>
         {activeFilterCount > 0 && (
@@ -288,10 +308,12 @@ const CategoryFilterPanel = ({
       </div>
 
       {showCategoryBrandRow && (
-        <SidebarAccordionRow title={firstRowTitle} defaultOpen={false}>
-          <p className="mb-3 rounded-md bg-primary/5 px-2.5 py-2 text-caption leading-relaxed text-text-secondary">
-            {t('category_filter_letter_hint')}
-          </p>
+        <SidebarAccordionRow title={firstRowTitle} defaultOpen={showFlatBrandsOnly}>
+          {hasGroupedNav && (
+            <p className="mb-3 rounded-md bg-primary/5 px-2.5 py-2 text-caption leading-relaxed text-text-secondary">
+              {t('category_filter_letter_hint')}
+            </p>
+          )}
           {hasGroupedNav && (
             <LetterIndexShell>
               {letterBlocks.map(({ key, groups }) => (
@@ -333,111 +355,160 @@ const CategoryFilterPanel = ({
             </LetterIndexShell>
           )}
           {showFlatBrandsOnly && (
-            <div className="max-h-[min(50vh,20rem)] overflow-x-hidden overflow-y-auto rounded-md border border-border bg-background/50 shadow-inner">
-              <div className="divide-y divide-border">
-                {flatBrandLetterBlocks.map(({ key, brands }) => (
-                  <LetterIndexRow
-                    key={key}
-                    id={letterDomId('brand', key)}
-                    label={letterLabel(key)}
-                    open={openLetters.has(`flat-${key}`)}
-                    onToggle={() => toggleLetter(`flat-${key}`)}
-                  >
-                    <BrandCheckboxList
-                      brands={brands}
-                      selectedIds={clientFilters.brandIds}
-                      onToggle={toggleBrand}
-                    />
-                  </LetterIndexRow>
-                ))}
-              </div>
-            </div>
+            <BrandCheckboxList
+              brands={flatBrandsNoSubs}
+              selectedIds={clientFilters.brandIds}
+              onToggle={toggleBrand}
+            />
           )}
         </SidebarAccordionRow>
       )}
 
-      <SidebarAccordionRow title={t('category_filter_price')} defaultOpen={false}>
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <label className="flex-1 text-caption text-text-secondary">
-              <span className="mb-1 block">{t('category_filter_price_from')}</span>
-              <input
-                key={`pf-min-${priceFieldKey}`}
-                ref={minPriceRef}
-                defaultValue={clientFilters.minPrice != null ? String(clientFilters.minPrice) : ''}
-                inputMode="numeric"
-                className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-body text-text-primary shadow-header transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary hover:border-primary/25"
-              />
-            </label>
-            <label className="flex-1 text-caption text-text-secondary">
-              <span className="mb-1 block">{t('category_filter_price_to')}</span>
-              <input
-                key={`pf-max-${priceFieldKey}`}
-                ref={maxPriceRef}
-                defaultValue={clientFilters.maxPrice != null ? String(clientFilters.maxPrice) : ''}
-                inputMode="numeric"
-                className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-body text-text-primary shadow-header transition-shadow duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary hover:border-primary/25"
-              />
-            </label>
-          </div>
-          <button
-            type="button"
-            onClick={() => applyPrice()}
-            className="rounded-sm bg-primary px-3 py-2.5 text-caption font-semibold text-white shadow-header transition-all duration-200 ease-in-out hover:bg-primary-dark hover:shadow-elevation-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.98]"
-          >
-            {t('category_filter_apply')}
-          </button>
-        </div>
+      <SidebarAccordionRow title={t('category_filter_price')} defaultOpen>
+        <PriceBucketRadioList
+          minPrice={clientFilters.minPrice}
+          maxPrice={clientFilters.maxPrice}
+          onPriceRangeChange={setPriceRange}
+          priceFacetProducts={priceFacetProducts}
+        />
       </SidebarAccordionRow>
 
       <SidebarAccordionRow title={t('category_filter_rating')} defaultOpen={false}>
-        <div className="space-y-2">
-          {[5, 4, 3, 2, 1].map((n) => (
-            <label
-              key={n}
-              className="flex cursor-pointer items-center gap-2 text-body text-text-primary"
-            >
-              <input
-                type="radio"
-                name="minRating"
-                checked={clientFilters.minRating === n}
-                onChange={() => setMinRating(n)}
-                className="h-4 w-4 border-border text-primary focus:ring-primary"
-              />
-              {t('category_filter_rating_at_least').replace('{n}', String(n))}
-            </label>
-          ))}
-          {clientFilters.minRating != null && (
-            <button
-              type="button"
-              onClick={() => setMinRating(null)}
-              className="text-caption text-primary hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            >
-              {t('category_filter_clear_all')}
-            </button>
-          )}
-        </div>
+        <ul className="divide-y divide-neutral-200/95">
+          {[5, 4, 3, 2, 1].map((n) => {
+            const selected = clientFilters.minRating === n;
+            const label = t('category_filter_rating_at_least').replace('{n}', String(n));
+            return (
+              <li key={n}>
+                <div
+                  className={cn(
+                    'flex items-center gap-3 py-3 transition-colors duration-150',
+                    selected && 'relative -mx-1 rounded-md bg-[#fff8f4] px-1 ring-1 ring-[#fde8dc]/90'
+                  )}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    aria-label={label}
+                    onClick={() => (selected ? setMinRating(null) : setMinRating(n))}
+                    className="shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/60 focus-visible:ring-offset-1"
+                  >
+                    <FilterFacetCheckbox checked={selected} />
+                  </button>
+                  <div className="min-w-0 flex-1 text-[13px] leading-snug tracking-tight text-neutral-900">
+                    <button
+                      type="button"
+                      onClick={() => (selected ? setMinRating(null) : setMinRating(n))}
+                      className="inline text-left font-medium hover:text-black focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/50"
+                    >
+                      {label}
+                    </button>
+                    {selected && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMinRating(null);
+                          }}
+                          className="inline align-baseline text-[13px] font-medium text-[#c0392b] decoration-transparent underline-offset-2 hover:text-[#a93226] hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/45"
+                        >
+                          {t('category_filter_remove_choice')}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </SidebarAccordionRow>
 
       <SidebarAccordionRow title={t('category_filter_row_in_stock')} defaultOpen={false}>
-        <label className="flex cursor-pointer items-center gap-2 text-body text-text-primary">
-          <input
-            type="checkbox"
-            checked={clientFilters.inStock}
-            onChange={(e) => setInStock(e.target.checked)}
-            className="h-4 w-4 rounded-sm border-border text-primary focus:ring-primary"
-          />
-          {t('category_filter_stock')}
-        </label>
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-body text-text-primary">
-          <input
-            type="checkbox"
-            checked={clientFilters.freeship}
-            onChange={(e) => setFreeship(e.target.checked)}
-            className="h-4 w-4 rounded-sm border-border text-primary focus:ring-primary"
-          />
-          {t('category_filter_freeship')}
-        </label>
+        <ul className="divide-y divide-neutral-200/95">
+          <li>
+            <div
+              className={cn(
+                'flex items-center gap-3 py-3 transition-colors duration-150',
+                clientFilters.inStock &&
+                  'relative -mx-1 rounded-md bg-[#fff8f4] px-1 ring-1 ring-[#fde8dc]/90'
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={clientFilters.inStock}
+                aria-label={t('category_filter_stock')}
+                onClick={() => setInStock(!clientFilters.inStock)}
+                className="shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/60 focus-visible:ring-offset-1"
+              >
+                <FilterFacetCheckbox checked={clientFilters.inStock} />
+              </button>
+              <div className="min-w-0 flex-1 text-[13px] leading-snug tracking-tight text-neutral-900">
+                <button
+                  type="button"
+                  onClick={() => setInStock(!clientFilters.inStock)}
+                  className="inline text-left font-medium hover:text-black focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/50"
+                >
+                  {t('category_filter_stock')}
+                </button>
+                {clientFilters.inStock && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={() => setInStock(false)}
+                      className="inline align-baseline text-[13px] font-medium text-[#c0392b] decoration-transparent underline-offset-2 hover:text-[#a93226] hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/45"
+                    >
+                      {t('category_filter_remove_choice')}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </li>
+          <li>
+            <div
+              className={cn(
+                'flex items-center gap-3 py-3 transition-colors duration-150',
+                clientFilters.freeship &&
+                  'relative -mx-1 rounded-md bg-[#fff8f4] px-1 ring-1 ring-[#fde8dc]/90'
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={clientFilters.freeship}
+                aria-label={t('category_filter_freeship')}
+                onClick={() => setFreeship(!clientFilters.freeship)}
+                className="shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/60 focus-visible:ring-offset-1"
+              >
+                <FilterFacetCheckbox checked={clientFilters.freeship} />
+              </button>
+              <div className="min-w-0 flex-1 text-[13px] leading-snug tracking-tight text-neutral-900">
+                <button
+                  type="button"
+                  onClick={() => setFreeship(!clientFilters.freeship)}
+                  className="inline text-left font-medium hover:text-black focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/50"
+                >
+                  {t('category_filter_freeship')}
+                </button>
+                {clientFilters.freeship && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={() => setFreeship(false)}
+                      className="inline align-baseline text-[13px] font-medium text-[#c0392b] decoration-transparent underline-offset-2 hover:text-[#a93226] hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e67e22]/45"
+                    >
+                      {t('category_filter_remove_choice')}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </li>
+        </ul>
       </SidebarAccordionRow>
 
       {tagOptions.length > 0 && (
