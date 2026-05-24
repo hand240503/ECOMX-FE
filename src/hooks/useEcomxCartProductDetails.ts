@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { productService } from '../api/services/productService';
 import type { ProductFullResponse } from '../api/types/product.types';
-import { currentUnitName } from '../lib/cartLineProductResolve';
+import { cartLineVariantSummary, currentUnitName } from '../lib/cartLineProductResolve';
 import type { CartLine } from '../lib/cartStorage';
 import { getProductImageUrl } from '../lib/productImage';
 
@@ -51,9 +51,12 @@ export function cartLineDisplayFromByIds(
   if (!p) {
     return { productName: '—', thumbnailUrl: null, unitName: '—' };
   }
+  const unit = currentUnitName(p, line.unitId, line);
+  const variantBits = cartLineVariantSummary(p, line);
+  const unitName = variantBits ? `${unit} — ${variantBits}` : unit;
   return {
     productName: p.productName,
     thumbnailUrl: getProductImageUrl(p) ?? null,
-    unitName: currentUnitName(p, line.unitId),
+    unitName,
   };
 }

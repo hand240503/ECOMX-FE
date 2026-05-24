@@ -27,8 +27,8 @@ export type CartContextValue = {
   totalQuantity: number;
   subtotal: number;
   addItem: (item: CartLineInput) => void;
-  setQuantity: (productId: number, unitId: number, quantity: number) => void;
-  removeItem: (productId: number, unitId: number) => void;
+  setQuantity: (productId: number, unitId: number, quantity: number, productVariantId?: number) => void;
+  removeItem: (productId: number, unitId: number, productVariantId?: number) => void;
   clear: () => void;
 };
 
@@ -63,17 +63,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const setQuantity = useCallback((productId: number, unitId: number, quantity: number) => {
-    setLines((prev) => {
-      const next = setLineQuantity(prev, productId, unitId, quantity);
-      saveCartLines(next);
-      return next;
-    });
-  }, []);
+  const setQuantity = useCallback(
+    (productId: number, unitId: number, quantity: number, productVariantId?: number) => {
+      setLines((prev) => {
+        const next = setLineQuantity(prev, productId, unitId, quantity, productVariantId);
+        saveCartLines(next);
+        return next;
+      });
+    },
+    []
+  );
 
-  const removeItem = useCallback((productId: number, unitId: number) => {
+  const removeItem = useCallback((productId: number, unitId: number, productVariantId?: number) => {
     setLines((prev) => {
-      const next = removeCartLine(prev, productId, unitId);
+      const next = removeCartLine(prev, productId, unitId, productVariantId);
       saveCartLines(next);
       return next;
     });

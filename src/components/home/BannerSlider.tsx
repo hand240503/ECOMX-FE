@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
-import slider2 from '../../assets/sliders/slider_1.png';
-import slider4 from '../../assets/sliders/slider_2.png';
-import slider5 from '../../assets/sliders/slider_5.webp';
+import slider1 from '../../assets/sliders/slider_1.png';
+import slider2 from '../../assets/sliders/slider_2.png';
+import slider3 from '../../assets/sliders/slider_4.png';
 
 const BannerSlider = () => {
   const slides = [
     {
       id: 1,
-      image: slider2,
+      image: slider1,
       url: ''
     },
     {
       id: 2,
-      image: slider4,
+      image: slider2,
       url: ''
     },
     {
       id: 3,
-      image: slider5,
+      image: slider3,
       url: ''
     }
   ];
@@ -34,7 +34,7 @@ const BannerSlider = () => {
 
   return (
     <section className="mb-4">
-      <div className="group relative aspect-[3584/1184] w-full overflow-hidden rounded-md bg-background">
+      <div className="group relative aspect-[736/320] w-full overflow-hidden rounded-md bg-background">
         {slides.map((slide, index) => (
           <img
             key={slide.id}

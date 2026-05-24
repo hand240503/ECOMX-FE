@@ -31,7 +31,11 @@ export function useProductDetail(productId: string | undefined) {
     enabled,
   });
 
-  const detailModel = query.data?.product ? mapProductFullToDetailModel(query.data.product) : null;
+  const detailModel = useMemo(
+    () => (query.data?.product ? mapProductFullToDetailModel(query.data.product) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query.data?.product]
+  );
 
   const isNotFound = query.error instanceof ProductNotFoundError;
 

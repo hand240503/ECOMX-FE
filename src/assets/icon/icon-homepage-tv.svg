@@ -1,0 +1,19 @@
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.5 25.0599C8 23.5006 10 22 12 22" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.5 25.0593H9.5" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M20.5 25.0599C20 23.5006 18 22 16 22" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M22.5 25.0593H18.5" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M4.90909 22H23.0909C23.593 22 24 21.5523 24 21V20H4V21C4 21.5523 4.40701 22 4.90909 22Z" fill="#FFEBED"/>
+<path d="M15.3636 9H4.90909C4.40701 9 4 9.44771 4 10V20H24V10C24 9.44772 23.5933 9 23.0912 9H20.8182H15.3636Z" fill="#FFEBED"/>
+<path d="M4 20V21C4 21.5523 4.40701 22 4.90909 22H23.0909C23.593 22 24 21.5523 24 21V20M4 20V10C4 9.44771 4.40701 9 4.90909 9H15.3636H20.8182H23.0912C23.5933 9 24 9.44772 24 10V20M4 20H24" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M10.9988 6.69802H11.0041H10.9988Z" fill="#FFEBED"/>
+<path d="M10.9988 6.69802H11.0041" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M9.5 5.64842C10.3284 4.82032 11.6711 4.82032 12.4995 5.64842H9.5Z" fill="#FFEBED"/>
+<path d="M9.5 5.64842C10.3284 4.82032 11.6711 4.82032 12.4995 5.64842" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M8 4.24269C8.79564 3.44701 9.87477 3 11 3C12.1252 3 13.2044 3.44701 14 4.24269" fill="#FFEBED"/>
+<path d="M8 4.24269C8.79564 3.44701 9.87477 3 11 3C12.1252 3 13.2044 3.44701 14 4.24269" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M6 12.5V11H7.5" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="16" y="6" width="5" height="11" rx="0.5" fill="#FFEBED" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="18.5" cy="14.5" r="0.5" fill="#FFEBED" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="17.5" y1="7.5" x2="19.5" y2="7.5" stroke="#D70018" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

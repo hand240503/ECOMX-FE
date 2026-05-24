@@ -31,7 +31,7 @@ export function PriceDisplay({
         {formattedCurrent}
       </span>
       {showOld && (
-        <span className="text-body text-text-secondary line-through decoration-border">
+        <span className="text-body font-semibold text-[#a1a1aa] line-through decoration-[#a1a1aa] decoration-1">
           {formattedOld}
         </span>
       )}

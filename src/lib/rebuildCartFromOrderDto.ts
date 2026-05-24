@@ -3,11 +3,32 @@ import type { OrderDto } from '../api/types/order.types';
 import type { ProductFullResponse } from '../api/types/product.types';
 import type { CartLineInput } from './cartStorage';
 import { getProductImageUrl } from './productImage';
+import { normalizedVariantsFromProduct } from './productVariantNormalize';
 
 function pickUnitForLine(
   product: ProductFullResponse,
-  detail: { unitPrice?: number; unitId?: number }
+  detail: { unitPrice?: number; unitId?: number; productVariantId?: number }
 ): { unitId: number; unitName: string; unitPrice: number } {
+  const vid = detail.productVariantId;
+  if (vid != null && vid > 0) {
+    const v = normalizedVariantsFromProduct(product).find((x) => x.id === vid);
+    const vprices = v?.prices ?? [];
+    if (detail.unitId != null) {
+      const pr = vprices.find((p) => p.unitId === detail.unitId);
+      if (pr) {
+        return { unitId: pr.unitId, unitName: pr.unitName, unitPrice: pr.currentValue };
+      }
+    }
+    if (detail.unitPrice != null && Number.isFinite(detail.unitPrice)) {
+      const unitPrice = detail.unitPrice;
+      const pr =
+        vprices.find((p) => Math.abs(p.currentValue - unitPrice) < 0.5) ?? vprices[0];
+      if (pr) return { unitId: pr.unitId, unitName: pr.unitName, unitPrice: pr.currentValue };
+    }
+    const pr = vprices[0];
+    if (pr) return { unitId: pr.unitId, unitName: pr.unitName, unitPrice: pr.currentValue };
+  }
+
   const prices = product.prices ?? [];
   if (detail.unitId != null) {
     const pr = prices.find((p) => p.unitId === detail.unitId);
@@ -46,12 +67,15 @@ export async function cartLineInputsFromOrderDto(
       const { unitId, unitName, unitPrice } = pickUnitForLine(p, {
         unitPrice: d.unitPrice,
         unitId: d.unitId,
+        productVariantId: d.productVariantId,
       });
       out.push({
         productId: d.productId,
         productName: (d.productName?.trim() || p.productName).trim(),
         thumbnailUrl: getProductImageUrl(p) ?? null,
         unitId,
+        productVariantId:
+          d.productVariantId != null && d.productVariantId > 0 ? d.productVariantId : undefined,
         unitName,
         unitPrice,
         quantity: d.quantity,

@@ -70,10 +70,83 @@ export function productDocumentIsMarkedMain(
 }
 
 /**
- * Ảnh đại diện:
+ * Ảnh đại diện SKU khi BE gửi cùng field như SPU (`variants[i].mainImageUrl`, … — GUIDE_USER §4.2).
+ */
+export function getVariantImageUrl(
+  variant: Partial<
+    Pick<ProductFullResponse, 'mainImageUrl' | 'thumbnailUrl' | 'imageUrl' | 'coverImageUrl' | 'imageUrls' | 'documents'>
+  >
+): string | undefined {
+  const pseudo: ProductFullResponse = {
+    id: 0,
+    productName: '',
+    description: '',
+    status: 1,
+    isFeatured: false,
+    soldCount: 0,
+    tag: '',
+    createdDate: '',
+    modifiedDate: '',
+    brand: null,
+    category: null,
+    prices: null,
+    variants: null,
+    recommendationScore: null,
+    recommendationSource: null,
+    averageRating: null,
+    ratingCount: null,
+    mainImageUrl: variant.mainImageUrl ?? null,
+    thumbnailUrl: variant.thumbnailUrl ?? null,
+    imageUrl: variant.imageUrl ?? null,
+    coverImageUrl: variant.coverImageUrl ?? null,
+    imageUrls: variant.imageUrls ?? null,
+    documents: variant.documents ?? null,
+  };
+  return getProductImageUrl(pseudo);
+}
+
+/**
+ * Gallery ảnh của một SKU — tương tự `getProductImageUrls` nhưng áp dụng cho object variant.
+ * Trả về mảng rỗng nếu variant không có ảnh riêng.
+ */
+export function getVariantImageUrls(
+  variant: Partial<
+    Pick<ProductFullResponse, 'mainImageUrl' | 'thumbnailUrl' | 'imageUrl' | 'coverImageUrl' | 'imageUrls' | 'documents'>
+  >
+): string[] {
+  const pseudo: ProductFullResponse = {
+    id: 0,
+    productName: '',
+    description: '',
+    status: 1,
+    isFeatured: false,
+    soldCount: 0,
+    tag: '',
+    createdDate: '',
+    modifiedDate: '',
+    brand: null,
+    category: null,
+    prices: null,
+    variants: null,
+    recommendationScore: null,
+    recommendationSource: null,
+    averageRating: null,
+    ratingCount: null,
+    mainImageUrl: variant.mainImageUrl ?? null,
+    thumbnailUrl: variant.thumbnailUrl ?? null,
+    imageUrl: variant.imageUrl ?? null,
+    coverImageUrl: variant.coverImageUrl ?? null,
+    imageUrls: variant.imageUrls ?? null,
+    documents: variant.documents ?? null,
+  };
+  return getProductImageUrls(pseudo);
+}
+
+/**
+ * Ảnh đại diện SPU:
  * 1) `mainImageUrl` / các alias (BE đã enrich từ ảnh `isMain`).
  * 2) `documents`: `type` 0|1 và `isMain === true`.
- * 3) ảnh đầu gallery (`imageUrls` — main trước, hoặc fallback từ documents).
+ * 3) ảnh đầu gallery (`imageUrls` — main trước, hoặc fallback từ `documents`).
  */
 export function getProductImageUrl(product: ProductFullResponse): string | undefined {
   for (const c of [

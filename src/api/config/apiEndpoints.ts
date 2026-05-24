@@ -50,6 +50,8 @@ export const API_ENDPOINTS = {
     FEATURED: '/products/featured',
     /** Backend có nhưng FE hiện chưa dùng */
     BEST_SELLERS: '/products/best-sellers',
+    /** `GET /products/active-promotions` */
+    ACTIVE_PROMOTIONS: '/products/active-promotions',
   },
 
   RECOMMENDATIONS: {
@@ -86,6 +88,8 @@ export const API_ENDPOINTS = {
 
   /** @see docs/API_add_order.md */
   ORDER: {
+    /** @see docs/CHECKOUT_ORDER_PRICING_UI.md */
+    CHECKOUT_PRICING_PREVIEW: '/orders/checkout-pricing-preview',
     PAYMENT_METHODS: '/payment-methods',
     CREATE: '/orders',
     LIST: '/orders',
@@ -147,6 +151,13 @@ export const API_ENDPOINTS = {
   USER_RATINGS_BY_PRODUCT: (productId: number | string) => `/user-ratings/product/${productId}`,
   /** Backend có nhưng FE hiện chưa dùng */
   USER_RATINGS_PRODUCT_AVERAGE: (productId: number | string) => `/user-ratings/product/${productId}/average`,
+
+  PRODUCT_COMMENTS: {
+    BY_PRODUCT: (productId: number | string) => `/product-comments/product/${productId}`,
+    CREATE: '/product-comments',
+    UPDATE: (id: number | string) => `/product-comments/${id}`,
+    DELETE: (id: number | string) => `/product-comments/${id}`,
+  },
 
   /** Backend có nhưng FE hiện chưa dùng */
   ADMIN: {

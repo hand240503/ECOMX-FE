@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import axios from 'axios';
 import {
   AlertTriangle,
+  Check,
   ChevronRight,
   Percent,
   RefreshCw,
@@ -31,8 +32,15 @@ import { useProductDetail } from '../../hooks/useProductDetail';
 import { useAuth } from '../../app/auth/AuthProvider';
 import { useCart } from '../../app/cart/CartProvider';
 import { useI18n } from '../../i18n/I18nProvider';
-import { getProductImageUrls } from '../../lib/productImage';
+import type { Lang } from '../../utils/i18n';
+import { getProductImageUrl, getProductImageUrls } from '../../lib/productImage';
 import type { ProductDetailPriceRow } from '../../api/mappers/productDetailMapper';
+import {
+  matchDetailVariantByOptions,
+  pickDetailPriceRowForUnit,
+  resolveVariantDisplayPrices,
+  resolveVariantPreviewForOptionValue,
+} from '../../api/mappers/productDetailMapper';
 import { cn } from '../../lib/cn';
 import { cartLineKey } from '../../lib/cartStorage';
 import { saveCheckoutLineKeys } from '../../lib/checkoutIntent';
@@ -47,6 +55,33 @@ import {
   reportCollectorProductDetailsOnce,
   reportCollectorProductMoreDetailsOnce
 } from '../../lib/collectorBehavior';
+
+/** Card ảnh + giá — Color / Màu sắc (DESIGN PDP biến thể). */
+function optionGroupKeyIsVisualVariantStyle(key: string): boolean {
+  const k = key.trim().toLowerCase();
+  if (k === 'color' || k === 'màu' || k === 'mau' || k === 'colour') return true;
+  if (k.includes('màu') || k.includes('mau')) return true;
+  if (k.includes('color') || k.includes('colour')) return true;
+  return false;
+}
+
+const PDP_VARIANT_CARD_ACCENT = '#C8102E';
+
+function formatPromoInstant(iso: string | null, lang: Lang): string {
+  if (iso == null || iso.trim() === '') return '—';
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  const d = new Date(parsed);
+  const locale = lang === 'vi' ? 'vi-VN' : 'en-GB';
+  return d.toLocaleString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
 
 function truncateLabel(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -92,19 +127,24 @@ function descriptionPlainTextLength(html: string): number {
 
 const ProductDetailPage = () => {
   const { productId } = useParams<{ productId: string }>();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { addItem } = useCart();
 
   const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const variantAutoSelectedRef = useRef(false);
+  const variantStartRef = useRef<Map<number, number>>(new Map());
   const [descExpanded, setDescExpanded] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
   const [addCartLoading, setAddCartLoading] = useState(false);
   const [buyNowLoading, setBuyNowLoading] = useState(false);
+  /** Tập offer IDs mà user đã tick "Mua kèm" trên PDP. */
+  const [checkedPwpOfferIds, setCheckedPwpOfferIds] = useState<Set<number>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileSticky, setShowMobileSticky] = useState(false);
 
@@ -118,10 +158,57 @@ const ProductDetailPage = () => {
   const { data, detailModel, recommendations, isPending, isError, error, refetch, isNotFound } =
     useProductDetail(productId);
 
-  const imageUrls = useMemo(
+  const productListingThumb = useMemo(
+    () => (data?.product ? getProductImageUrl(data.product) : undefined),
+    [data?.product]
+  );
+
+  /** SPU gallery — ảnh gốc cấp sản phẩm */
+  const spuImageUrls = useMemo(
     () => (data?.product ? getProductImageUrls(data.product) : []),
     [data?.product]
   );
+
+  /** Ảnh đầu tiên của SPU — dùng làm fallback cho activeImageUrl */
+  const spuFirstImageUrl = useMemo(
+    () => (data?.product ? getProductImageUrl(data.product) : null),
+    [data?.product]
+  );
+
+  /**
+   * Tổng hợp TẤT CẢ ảnh: SPU gallery trước, sau đó ảnh riêng của từng variant (dedup).
+   * variantImageStartIndex: Map variantId → index đầu tiên trong mảng kết hợp.
+   */
+  const { allImageUrls, variantImageStartIndex } = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const startMap = new Map<number, number>();
+
+    const push = (url: string): boolean => {
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      out.push(url);
+      return true;
+    };
+
+    for (const u of spuImageUrls) push(u);
+
+    if (detailModel) {
+      for (const v of detailModel.variants) {
+        if (!v.displayImageUrls || v.displayImageUrls.length === 0) continue;
+        let firstIdx: number | null = null;
+        for (const u of v.displayImageUrls) {
+          const before = out.length;
+          const added = push(u);
+          if (added && firstIdx === null) firstIdx = before;
+        }
+        if (firstIdx !== null) startMap.set(v.id, firstIdx);
+      }
+    }
+
+    return { allImageUrls: out, variantImageStartIndex: startMap };
+  }, [spuImageUrls, detailModel]);
+  variantStartRef.current = variantImageStartIndex;
 
   const policyLabels = useMemo(
     () => ({
@@ -144,18 +231,127 @@ const ProductDetailPage = () => {
   );
 
   useEffect(() => {
-    if (!detailModel?.prices.length) return;
-    setSelectedUnitId((prev) => {
-      if (prev != null && detailModel.prices.some((p) => p.unitId === prev)) return prev;
-      return detailModel.prices[0].unitId;
+    if (!detailModel) return;
+    variantAutoSelectedRef.current = false;
+    if (detailModel.variants.length === 0) {
+      setSelectedOptions({});
+      return;
+    }
+    const def =
+      detailModel.variants.find((v) => v.id === detailModel.defaultVariantId) ??
+      [...detailModel.variants].sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    setSelectedOptions(def ? { ...def.optionValues } : {});
+  }, [detailModel?.id, detailModel?.defaultVariantId, detailModel?.variants.length]);
+
+  const matchedVariant = useMemo(() => {
+    if (!detailModel || detailModel.variants.length === 0) return null;
+    return matchDetailVariantByOptions(
+      detailModel.variants,
+      detailModel.optionKeysOrdered,
+      selectedOptions
+    );
+  }, [detailModel, selectedOptions]);
+
+  /** Toàn bộ ảnh hiển thị trong gallery */
+  const imageUrls = allImageUrls;
+
+  /** Khi variant thay đổi → nhảy đến ảnh đầu tiên của variant đó */
+  useEffect(() => {
+    if (variantStartRef.current.size === 0) return;
+    if (matchedVariant == null) return;
+    if (!variantAutoSelectedRef.current) {
+      variantAutoSelectedRef.current = true;
+      return;
+    }
+    const idx = variantStartRef.current.get(matchedVariant.id);
+    if (idx !== undefined) setActiveImageIndex(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedVariant?.id]);
+
+  /**
+   * PwP programs chỉ hiển thị khi variant đang chọn khớp với anchorVariantId.
+   * Nếu anchorVariantId === null thì áp dụng cho mọi variant.
+   */
+  const visiblePwpPrograms = useMemo(() => {
+    if (!detailModel) return [];
+    return detailModel.purchaseWithPurchasePrograms.filter(
+      (prog) => prog.anchorVariantId === null || prog.anchorVariantId === matchedVariant?.id
+    );
+  }, [detailModel?.purchaseWithPurchasePrograms, matchedVariant?.id]);
+
+  const catalogFallbackUnit = useMemo(() => {
+    if (!detailModel?.prices?.length) return null;
+    const p = detailModel.prices[0]!;
+    return { unitId: p.unitId, unitName: p.unitName };
+  }, [detailModel?.prices]);
+
+  const variantPriceRows = useMemo(() => {
+    if (!detailModel) return [];
+    if (detailModel.variants.length === 0) return detailModel.prices;
+    if (!matchedVariant) return [];
+    return resolveVariantDisplayPrices(matchedVariant, catalogFallbackUnit);
+  }, [detailModel, matchedVariant, catalogFallbackUnit]);
+
+  const hasVariants = Boolean(detailModel && detailModel.variants.length > 0);
+
+  const allVariantOptionsSelected = useMemo(() => {
+    if (!detailModel || !hasVariants) return true;
+    return detailModel.optionKeysOrdered.every((k) => {
+      const v = selectedOptions[k];
+      return v != null && String(v).trim() !== '';
     });
-  }, [detailModel]);
+  }, [detailModel, hasVariants, selectedOptions]);
+
+  /** Chưa chọn đủ từng nhóm phân loại. */
+  const variantSelectionIncomplete = hasVariants && !allVariantOptionsSelected;
+  /** Đã chọn đủ nhưng không có cấu hình hợp lệ / không bán / không có giá. */
+  const variantConfigurationUnavailable = useMemo(() => {
+    if (!hasVariants) return false;
+    if (!allVariantOptionsSelected) return false;
+    if (matchedVariant == null) return true;
+    if (!matchedVariant.active) return true;
+    const rows = resolveVariantDisplayPrices(matchedVariant, catalogFallbackUnit);
+    if (!rows.length || !rows.some((r) => r.currentValue > 0)) return true;
+    return false;
+  }, [hasVariants, allVariantOptionsSelected, matchedVariant, catalogFallbackUnit]);
+
+  useEffect(() => {
+    if (!variantPriceRows.length) return;
+    setSelectedUnitId((prev) => {
+      if (prev != null && variantPriceRows.some((p) => p.unitId === prev)) return prev;
+      return variantPriceRows[0]!.unitId;
+    });
+  }, [variantPriceRows]);
 
   const selectedPrice: ProductDetailPriceRow | null = useMemo(() => {
-    if (!detailModel?.prices.length) return null;
-    if (selectedUnitId == null) return detailModel.prices[0];
-    return detailModel.prices.find((p) => p.unitId === selectedUnitId) ?? detailModel.prices[0];
-  }, [detailModel, selectedUnitId]);
+    if (!variantPriceRows.length) return null;
+    if (selectedUnitId == null) return variantPriceRows[0]!;
+    return variantPriceRows.find((p) => p.unitId === selectedUnitId) ?? variantPriceRows[0]!;
+  }, [variantPriceRows, selectedUnitId]);
+
+  // Khi PwP programs thay đổi (variant đổi / data load xong) → auto-check tất cả offer
+  useEffect(() => {
+    setCheckedPwpOfferIds(new Set(visiblePwpPrograms.map((p) => p.id)));
+  }, [visiblePwpPrograms]);
+
+  const lacksCatalogPrice = Boolean(
+    detailModel &&
+      !hasVariants &&
+      (!detailModel.prices || detailModel.prices.length === 0)
+  );
+
+  const productNotAvailable =
+    Boolean(detailModel) &&
+    (!detailModel!.inStock ||
+      (hasVariants && variantConfigurationUnavailable) ||
+      lacksCatalogPrice);
+
+  const canPurchase = Boolean(
+    detailModel?.inStock &&
+      selectedPrice &&
+      !variantSelectionIncomplete &&
+      !variantConfigurationUnavailable
+  );
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -280,6 +476,16 @@ const ProductDetailPage = () => {
 
   const variantThumb = imageUrls[0];
 
+  const selectedSidebarLabel = useMemo(() => {
+    if (!detailModel || !selectedPrice) return '—';
+    if (!hasVariants) return selectedPrice.unitName;
+    const bits = detailModel.optionKeysOrdered
+      .map((k) => selectedOptions[k]?.trim())
+      .filter(Boolean)
+      .join(' · ');
+    return bits ? `${bits} · ${selectedPrice.unitName}` : selectedPrice.unitName;
+  }, [detailModel, selectedOptions, selectedPrice, hasVariants]);
+
   const simulateCartApi = useCallback(
     (action: 'cart' | 'buy') => {
       return new Promise<void>((resolve, reject) => {
@@ -296,7 +502,7 @@ const ProductDetailPage = () => {
   );
 
   const handleAddCart = async () => {
-    if (!detailModel?.inStock || !selectedPrice) return;
+    if (!canPurchase || !detailModel || !selectedPrice) return;
     setAddCartLoading(true);
     try {
       await simulateCartApi('cart');
@@ -305,10 +511,30 @@ const ProductDetailPage = () => {
         productName: detailModel.productName,
         thumbnailUrl: imageUrls[0] ?? null,
         unitId: selectedPrice.unitId,
+        productVariantId: matchedVariant?.id,
         unitName: selectedPrice.unitName,
         unitPrice: selectedPrice.currentValue,
         quantity
       });
+      // Thêm companion đã được tick "Mua kèm" vào giỏ
+      for (const prog of visiblePwpPrograms) {
+        if (!checkedPwpOfferIds.has(prog.id)) continue;
+        const companionId = prog.role === 'anchor' ? prog.companionProductId : prog.anchorProductId;
+        const companionVariantId = prog.role === 'anchor' ? prog.companionVariantId : prog.anchorVariantId;
+        const companionName = prog.role === 'anchor' ? prog.companionProductName : prog.anchorProductName;
+        const companionImg = prog.role === 'anchor' ? prog.companionProductMainImageUrl : prog.anchorProductMainImageUrl;
+        if (companionId == null) continue;
+        addItem({
+          productId: companionId,
+          productName: companionName ?? '',
+          thumbnailUrl: companionImg ?? null,
+          unitId: 0,
+          productVariantId: companionVariantId ?? undefined,
+          unitName: '',
+          unitPrice: prog.promoUnitPrice,
+          quantity: 1
+        });
+      }
       reportCollectorProductMoreDetailsOnce(detailModel.id, 'add_to_cart');
       toast.success(t('pdp_add_cart_ok'));
     } catch {
@@ -319,7 +545,7 @@ const ProductDetailPage = () => {
   };
 
   const handleBuyNow = async () => {
-    if (!detailModel?.inStock || !selectedPrice) return;
+    if (!canPurchase || !detailModel || !selectedPrice) return;
     setBuyNowLoading(true);
     try {
       await simulateCartApi('buy');
@@ -329,13 +555,37 @@ const ProductDetailPage = () => {
           productName: detailModel.productName,
           thumbnailUrl: imageUrls[0] ?? null,
           unitId: selectedPrice.unitId,
+          productVariantId: matchedVariant?.id,
           unitName: selectedPrice.unitName,
           unitPrice: selectedPrice.currentValue,
           quantity
         });
+        // Thêm companion đã được tick "Mua kèm" vào giỏ
+        for (const prog of visiblePwpPrograms) {
+          if (!checkedPwpOfferIds.has(prog.id)) continue;
+          const companionId = prog.role === 'anchor' ? prog.companionProductId : prog.anchorProductId;
+          const companionVariantId = prog.role === 'anchor' ? prog.companionVariantId : prog.anchorVariantId;
+          const companionName = prog.role === 'anchor' ? prog.companionProductName : prog.anchorProductName;
+          const companionImg = prog.role === 'anchor' ? prog.companionProductMainImageUrl : prog.anchorProductMainImageUrl;
+          if (companionId == null) continue;
+          addItem({
+            productId: companionId,
+            productName: companionName ?? '',
+            thumbnailUrl: companionImg ?? null,
+            unitId: 0,
+            productVariantId: companionVariantId ?? undefined,
+            unitName: '',
+            unitPrice: prog.promoUnitPrice,
+            quantity: 1
+          });
+        }
       });
       reportCollectorProductMoreDetailsOnce(detailModel.id, 'add_to_cart');
-      const key = cartLineKey({ productId: detailModel.id, unitId: selectedPrice.unitId });
+      const key = cartLineKey({
+        productId: detailModel.id,
+        unitId: selectedPrice.unitId,
+        productVariantId: matchedVariant?.id
+      });
       if (!isAuthenticated) {
         saveCheckoutLineKeys([key]);
         navigate('/login', { state: { from: '/checkout' } });
@@ -458,7 +708,7 @@ const ProductDetailPage = () => {
             </>
           )}
 
-          {!isPending && !isError && detailModel && selectedPrice && (
+          {!isPending && !isError && detailModel && (
             <>
               {/*
                * VÙNG 3 CỘT CHÍNH — sticky hoạt động trong phạm vi wrapper này.
@@ -586,20 +836,152 @@ const ProductDetailPage = () => {
                         />
                       ) : null}
 
+                      {detailModel.optionGroups.length > 0 ? (
+                        <div className="mt-4 space-y-4">
+                          {detailModel.optionGroups.map((g) => {
+                            const visual = optionGroupKeyIsVisualVariantStyle(g.key);
+                            return (
+                              <div key={g.key}>
+                                <p
+                                  className={
+                                    visual
+                                      ? 'mb-2 text-body font-bold text-text-primary'
+                                      : 'mb-2 text-caption font-semibold text-text-secondary'
+                                  }
+                                >
+                                  {g.key}
+                                </p>
+                                {visual ? (
+                                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                                    {g.values.map((val) => {
+                                      const picked = selectedOptions[g.key] === val;
+                                      const preview = resolveVariantPreviewForOptionValue(
+                                        detailModel.variants,
+                                        detailModel.optionKeysOrdered,
+                                        selectedOptions,
+                                        g.key,
+                                        val,
+                                      );
+                                      const priceRow = preview
+                                        ? pickDetailPriceRowForUnit(
+                                            preview,
+                                            selectedUnitId,
+                                            catalogFallbackUnit,
+                                          )
+                                        : null;
+                                      const thumb =
+                                        preview?.displayThumbnailUrl ??
+                                        productListingThumb;
+                                      const priceLine = priceRow?.formattedCurrent ?? '—';
+
+                                      return (
+                                        <button
+                                          key={`${g.key}-${val}`}
+                                          type="button"
+                                          onClick={() =>
+                                            setSelectedOptions((prev) => ({
+                                              ...prev,
+                                              [g.key]: val,
+                                            }))
+                                          }
+                                          className={cn(
+                                            'relative flex min-w-[200px] max-w-[240px] flex-shrink-0 items-center gap-3 rounded-[10px] border-2 bg-surface p-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2',
+                                            picked ? 'shadow-sm' : 'hover:bg-gray-50',
+                                          )}
+                                          style={
+                                            picked
+                                              ? { borderColor: PDP_VARIANT_CARD_ACCENT }
+                                              : { borderColor: '#E0E0E0' }
+                                          }
+                                        >
+                                          {picked ? (
+                                            <span
+                                              className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-sm text-white shadow-sm"
+                                              style={{ backgroundColor: PDP_VARIANT_CARD_ACCENT }}
+                                              aria-hidden
+                                            >
+                                              <Check className="h-3 w-3" strokeWidth={3} />
+                                            </span>
+                                          ) : null}
+                                          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100 ring-1 ring-gray-200/80">
+                                            {thumb ? (
+                                              <img
+                                                src={thumb}
+                                                alt=""
+                                                className="h-full w-full object-cover"
+                                                loading="lazy"
+                                              />
+                                            ) : (
+                                              <div className="flex h-full items-center justify-center text-caption text-gray-400">
+                                                —
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="min-w-0 flex-1 pr-5">
+                                            <p className="line-clamp-2 text-body font-bold leading-snug text-text-primary">
+                                              {val}
+                                            </p>
+                                            <p className="mt-0.5 text-body font-normal text-text-primary">
+                                              {priceLine}
+                                            </p>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {g.values.map((val) => {
+                                      const picked = selectedOptions[g.key] === val;
+                                      return (
+                                        <button
+                                          key={`${g.key}-${val}`}
+                                          type="button"
+                                          onClick={() =>
+                                            setSelectedOptions((prev) => ({
+                                              ...prev,
+                                              [g.key]: val,
+                                            }))
+                                          }
+                                          className={cn(
+                                            'rounded-lg border px-3 py-2 text-body font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                                            picked
+                                              ? 'border-primary bg-primary text-white shadow-sm'
+                                              : 'border-border bg-surface text-text-primary hover:border-primary/50 hover:bg-primary/5',
+                                          )}
+                                        >
+                                          {val}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+
                       <div className="mt-4 rounded-xl border border-border/70 bg-background/50 p-4">
-                        <PriceDisplay
-                          tone="neutral"
-                          formattedCurrent={selectedPrice.formattedCurrent}
-                          formattedOld={selectedPrice.formattedOld}
-                          discountBadgeText={discountBadgeText}
-                        />
+                        {selectedPrice ? (
+                          <PriceDisplay
+                            tone="neutral"
+                            formattedCurrent={selectedPrice.formattedCurrent}
+                            formattedOld={selectedPrice.formattedOld}
+                            discountBadgeText={discountBadgeText}
+                          />
+                        ) : variantSelectionIncomplete ? (
+                          <p className="m-0 text-body font-medium text-danger">{t('pdp_variant_pick_price')}</p>
+                        ) : (
+                          <p className="m-0 text-body font-medium text-danger">{t('pdp_product_unavailable')}</p>
+                        )}
                       </div>
 
-                      {detailModel.prices.length > 1 && (
+                      {variantPriceRows.length > 1 ? (
                         <div className="mt-4">
                           <p className="mb-2 text-caption font-semibold text-text-secondary">{t('pdp_unit_heading')}</p>
                           <div className="flex flex-wrap gap-2">
-                            {detailModel.prices.map((p) => (
+                            {variantPriceRows.map((p) => (
                               <button
                                 key={p.unitId}
                                 type="button"
@@ -616,19 +998,156 @@ const ProductDetailPage = () => {
                             ))}
                           </div>
                         </div>
-                      )}
+                      ) : null}
 
                       <div className="mt-4">
-                        {detailModel.inStock ? (
+                        {variantSelectionIncomplete ? (
+                          <span className="inline-flex items-center rounded-lg bg-danger/10 px-3 py-1.5 text-caption font-semibold text-danger">
+                            {t('pdp_variant_incomplete')}
+                          </span>
+                        ) : productNotAvailable ? (
+                          <span className="inline-flex items-center rounded-lg bg-danger/10 px-3 py-1.5 text-caption font-semibold text-danger">
+                            {t('pdp_product_unavailable')}
+                          </span>
+                        ) : (
                           <span className="inline-flex items-center rounded-lg bg-success/12 px-3 py-1.5 text-caption font-semibold text-success">
                             {t('pdp_in_stock')}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-lg bg-gray-200 px-3 py-1.5 text-caption font-semibold text-text-secondary">
-                            {t('pdp_out_stock')}
-                          </span>
                         )}
                       </div>
+
+                      {(detailModel.volumePriceTiers.length > 0 ||
+                        visiblePwpPrograms.length > 0 ||
+                        (matchedVariant?.activePriceChange != null && !variantSelectionIncomplete)) && (
+                        <div className="mt-4 rounded-xl border border-border/70 bg-surface p-4">
+                          <p className="mb-3 text-caption font-bold uppercase tracking-wide text-text-secondary">
+                            {t('pdp_promo_programs_title')}
+                          </p>
+                          <p className="mb-3 text-caption leading-relaxed text-text-secondary">
+                            {t('pdp_price_cart_note')}
+                          </p>
+
+                          {matchedVariant?.activePriceChange != null && !variantSelectionIncomplete ? (
+                            <div className="mb-3 rounded-lg border border-danger/20 bg-danger/5 p-3">
+                              <p className="text-body font-semibold text-text-primary">{t('pdp_pc_heading')}</p>
+                              <p className="mt-1 text-caption text-text-secondary">
+                                {t('pdp_pc_period')
+                                  .replace('{start}', formatPromoInstant(matchedVariant.activePriceChange.startAt, lang))
+                                  .replace('{end}', formatPromoInstant(matchedVariant.activePriceChange.endAt, lang))}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-body">
+                                <span className="text-text-secondary">
+                                  {t('pdp_pc_sale_price')}{' '}
+                                  <span className="font-bold text-danger">
+                                    {formatPrice(matchedVariant.activePriceChange.salePrice)}
+                                  </span>
+                                </span>
+                                <span className="text-text-secondary">
+                                  {t('pdp_pc_list_price')}{' '}
+                                  <span className="font-semibold text-[#a1a1aa] line-through decoration-[#a1a1aa] decoration-1">
+                                    {formatPrice(matchedVariant.activePriceChange.basePrice)}
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {detailModel.volumePriceTiers.length > 0 ? (
+                            <div className="mb-3">
+                              <p className="mb-2 text-body font-semibold text-text-primary">{t('pdp_volume_heading')}</p>
+                              <ul className="m-0 list-none space-y-1 p-0 text-caption text-text-secondary">
+                                {detailModel.volumePriceTiers.map((tier) => (
+                                  <li key={tier.id}>
+                                    {t('pdp_volume_row')
+                                      .replace('{min}', String(tier.minQuantity))
+                                      .replace('{price}', formatPrice(tier.unitPrice))}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {visiblePwpPrograms.length > 0 ? (
+                            <div>
+                              <p className="mb-2 text-body font-semibold text-text-primary">{t('pdp_pwp_heading')}</p>
+                              <ul className="m-0 list-none space-y-2 p-0">
+                                {visiblePwpPrograms.map((prog) => {
+                                  // Sản phẩm được giảm giá khi mua kèm:
+                                  // - role=anchor → companion là sản phẩm được ưu đãi
+                                  // - role=companion → anchor là sản phẩm trigger
+                                  const dealProductId = prog.role === 'anchor' ? prog.companionProductId : prog.anchorProductId;
+                                  const dealProductName = prog.role === 'anchor' ? prog.companionProductName : prog.anchorProductName;
+                                  const dealProductImg = prog.role === 'anchor' ? prog.companionProductMainImageUrl : prog.anchorProductMainImageUrl;
+                                  const checked = checkedPwpOfferIds.has(prog.id);
+
+                                  return (
+                                    <li key={prog.id} className={cn(
+                                      'rounded-lg border p-3 transition-colors duration-150',
+                                      checked
+                                        ? 'border-primary/40 bg-primary/5'
+                                        : 'border-border/60 bg-background/80'
+                                    )}>
+                                      {/* Hàng trên: ảnh + tên + giá */}
+                                      <div className="flex items-center gap-3">
+                                        {dealProductImg ? (
+                                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border/60 bg-background shadow-sm">
+                                            <img
+                                              src={dealProductImg}
+                                              alt=""
+                                              className="h-full w-full object-cover"
+                                              loading="lazy"
+                                            />
+                                          </div>
+                                        ) : null}
+                                        <div className="min-w-0 flex-1">
+                                          {dealProductId != null ? (
+                                            <Link
+                                              className="line-clamp-2 text-body font-semibold text-text-primary hover:text-primary hover:underline"
+                                              to={`/products/${dealProductId}`}
+                                            >
+                                              {dealProductName ?? `#${dealProductId}`}
+                                            </Link>
+                                          ) : (
+                                            <p className="line-clamp-2 text-body font-semibold text-text-primary">
+                                              {dealProductName}
+                                            </p>
+                                          )}
+                                          <p className="mt-0.5 text-caption text-text-secondary">
+                                            Giá mua kèm:{' '}
+                                            <span className="font-bold text-danger">
+                                              {formatPrice(prog.promoUnitPrice)}
+                                            </span>
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Hàng dưới: checkbox opt-in */}
+                                      <label className="mt-2.5 flex cursor-pointer items-center gap-2.5">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            setCheckedPwpOfferIds((prev) => {
+                                              const next = new Set(prev);
+                                              if (e.target.checked) next.add(prog.id);
+                                              else next.delete(prog.id);
+                                              return next;
+                                            });
+                                          }}
+                                          className="h-4 w-4 cursor-pointer accent-primary"
+                                        />
+                                        <span className="text-caption text-text-secondary">
+                                          Mua kèm sản phẩm này
+                                        </span>
+                                      </label>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
 
                       {tagTokens.length > 0 && (
                         <div className="mt-5">
@@ -756,7 +1275,7 @@ const ProductDetailPage = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-caption text-text-secondary">{t('pdp_selected_label')}</p>
-                      <p className="truncate font-medium text-text-primary">{selectedPrice.unitName}</p>
+                      <p className="line-clamp-2 font-medium text-text-primary">{selectedSidebarLabel}</p>
                     </div>
                   </div>
 
@@ -766,13 +1285,15 @@ const ProductDetailPage = () => {
                       value={quantity}
                       onChange={setQuantity}
                       min={1}
-                      disabled={!detailModel.inStock}
+                      disabled={!canPurchase}
                     />
                   </div>
 
                   <div className="mt-5 flex items-end justify-between gap-2 border-b border-border/80 pb-4">
                     <span className="text-body text-text-secondary">{t('pdp_subtotal')}</span>
-                    <span className="text-xl font-bold text-text-primary">{subtotalFormatted}</span>
+                    <span className="text-xl font-bold text-text-primary">
+                      {subtotalFormatted || '—'}
+                    </span>
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3">
@@ -781,7 +1302,7 @@ const ProductDetailPage = () => {
                       variant="danger"
                       fullWidth
                       className="h-12 !min-h-[48px] justify-center font-semibold shadow-md"
-                      disabled={!detailModel.inStock}
+                      disabled={!canPurchase}
                       loading={buyNowLoading}
                       onClick={() => void handleBuyNow()}
                     >
@@ -793,7 +1314,7 @@ const ProductDetailPage = () => {
                       variant="profileOutline"
                       fullWidth
                       className="h-12 !min-h-[48px] justify-center gap-2 border-2 border-primary text-primary hover:bg-primary hover:text-white"
-                      disabled={!detailModel.inStock}
+                      disabled={!canPurchase}
                       loading={addCartLoading}
                       leftIcon={<ShoppingCart size={20} />}
                       onClick={() => void handleAddCart()}
@@ -824,6 +1345,7 @@ const ProductDetailPage = () => {
                   className="xl:col-span-9 xl:col-start-1 xl:row-start-2"
                 >
                   <ProductReviewsPlaceholder
+                    productId={detailModel.id}
                     className="shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
                   />
                 </div>
@@ -846,21 +1368,23 @@ const ProductDetailPage = () => {
       </main>
 
       {/* Mobile sticky action bar */}
-      {showMobileSticky && !isPending && !isError && detailModel && selectedPrice && (
+      {showMobileSticky && !isPending && !isError && detailModel && (
         <div className="fixed bottom-0 left-0 right-0 z-drawer border-t border-border bg-surface p-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] tablet:hidden">
           <div className="mx-auto flex max-w-container items-center gap-2 px-2">
             <div className="min-w-0 flex-1">
               <p className="truncate text-caption font-medium text-text-primary">
                 {detailModel.productName}
               </p>
-              <p className="text-caption font-bold text-danger">{selectedPrice.formattedCurrent}</p>
+              <p className="text-caption font-bold text-danger">
+                {selectedPrice?.formattedCurrent ?? '—'}
+              </p>
             </div>
             <Button
               type="button"
               variant="danger"
               size="sm"
               className="!min-h-[40px] flex-shrink-0 px-2 font-semibold"
-              disabled={!detailModel.inStock}
+              disabled={!canPurchase}
               loading={buyNowLoading}
               onClick={() => void handleBuyNow()}
             >
@@ -871,7 +1395,7 @@ const ProductDetailPage = () => {
               variant="profileOutline"
               size="sm"
               className="!min-h-[40px] flex-shrink-0 border-primary px-2 text-primary"
-              disabled={!detailModel.inStock}
+              disabled={!canPurchase}
               loading={addCartLoading}
               onClick={() => void handleAddCart()}
             >

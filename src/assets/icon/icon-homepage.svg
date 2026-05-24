@@ -1,0 +1,9 @@
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="9.55078" y="4.5" width="8.4" height="14.625" rx="1" fill="#FFEBED" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M12.5508 5H14.9508H12.5508Z" fill="#FFEBED"/>
+<path d="M12.5508 5H14.9508" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.83301 14.0319H9.5H15.6665H18H21.833V22.0319C21.833 22.5842 21.3853 23.0319 20.833 23.0319H6.83301C6.28072 23.0319 5.83301 22.5842 5.83301 22.0319V14.0319Z" fill="#FFEBED"/>
+<path d="M3 10.125L5.83301 14.0319H9.5L6.5 10.125H3Z" fill="#FFEBED"/>
+<path d="M21.833 14.0319L24.5 10.125H21L18 14.0319H21.833Z" fill="#FFEBED"/>
+<path d="M5.83301 14.0319V22.0319C5.83301 22.5842 6.28072 23.0319 6.83301 23.0319H20.833C21.3853 23.0319 21.833 22.5842 21.833 22.0319V14.0319M5.83301 14.0319L3 10.125H6.5L9.5 14.0319M5.83301 14.0319H9.5M21.833 14.0319L24.5 10.125H21L18 14.0319M21.833 14.0319H18M9.5 14.0319H15.6665H18" stroke="#D70018" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

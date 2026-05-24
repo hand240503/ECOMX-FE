@@ -8,7 +8,7 @@ import { useCart } from '../../app/cart/CartProvider';
 import { orderService, productService } from '../../api/services';
 import type { CreatedOrderDetail, OrderDto } from '../../api/types/order.types';
 import type { ProductFullResponse } from '../../api/types/product.types';
-import { orderLineDisplayFromProduct, uniqueProductIdsFromOrders } from '../../hooks/useOrderDetailProducts';
+import { orderLineDisplayFromProduct, uniqueProductIdsFromOrders, orderLineVariantCaption } from '../../hooks/useOrderDetailProducts';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nProvider';
@@ -276,8 +276,7 @@ function OrderCard({
           </li>
         ) : null}
         {details.map((line) => {
-          const lineDesc = parseOrderDescriptionJson(line.description ?? null);
-          const variantLabel = lineDesc?.unit?.trim() || '—';
+          const variantLabel = orderLineVariantCaption(line);
           const total = lineDisplayTotal(line);
           const display = orderLineDisplayFromProduct(line, productById);
           return (
@@ -501,7 +500,7 @@ export default function OrdersTab() {
       vnpayOrdersTabSettledOnce.add(tid);
       for (const k of vnpayOrdersAwait.lineKeys) {
         const p = parseCartLineKey(k);
-        if (p) removeItem(p.productId, p.unitId);
+        if (p) removeItem(p.productId, p.unitId, p.productVariantId);
       }
       void queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       clearVnpayOrdersAwaitPayload();

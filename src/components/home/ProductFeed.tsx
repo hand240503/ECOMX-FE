@@ -132,6 +132,10 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
               soldCount={product.soldCount}
               location={product.location}
               isFreeship={product.isFreeship}
+              priceIsFrom={Boolean(product.priceIsFrom)}
+              showPcSaleBadge={Boolean(product.showPcSaleBadge)}
+              volumeTierHint={Boolean(product.volumeTierHint)}
+              pwpHint={Boolean(product.pwpHint)}
             />
           ))}
         </div>

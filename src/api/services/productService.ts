@@ -2,7 +2,7 @@ import axios from 'axios';
 import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type { ApiResponse, PaginationMetadata, ProductSearchMetadata } from '../types/common.types';
-import type { ProductDetailResponse, ProductFullResponse } from '../types/product.types';
+import type { ProductDetailResponse, ProductFullResponse, ActivePromotionsResponse } from '../types/product.types';
 
 export interface ProductsByCategoryResult {
   products: ProductFullResponse[];
@@ -237,5 +237,30 @@ export const productService = {
       );
     }
     return Array.isArray(data.data) ? data.data : [];
+  },
+
+  /**
+   * `GET /products/active-promotions`
+   * @see docs/active-promotions-api.md
+   */
+  async getActivePromotions(options?: { signal?: AbortSignal }): Promise<ActivePromotionsResponse> {
+    const { data } = await axiosInstance.get<ApiResponse<ActivePromotionsResponse>>(
+      API_ENDPOINTS.PRODUCT.ACTIVE_PROMOTIONS,
+      { signal: options?.signal }
+    );
+
+    if (data.success === false || !data.data) {
+      throw new Error(
+        typeof data.message === 'string' && data.message.trim() !== ''
+          ? data.message.trim()
+          : 'getActivePromotions failed'
+      );
+    }
+
+    return {
+      price_change: Array.isArray(data.data.price_change) ? data.data.price_change : [],
+      volume_tier: Array.isArray(data.data.volume_tier) ? data.data.volume_tier : [],
+      purchase_with_purchase: Array.isArray(data.data.purchase_with_purchase) ? data.data.purchase_with_purchase : []
+    };
   },
 };

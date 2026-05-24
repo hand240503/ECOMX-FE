@@ -420,6 +420,10 @@ const CategoryProductsPage = () => {
                             soldCount={card.soldCount}
                             location={card.location}
                             isFreeship={card.isFreeship}
+                            priceIsFrom={Boolean(card.priceIsFrom)}
+                            showPcSaleBadge={Boolean(card.showPcSaleBadge)}
+                            volumeTierHint={Boolean(card.volumeTierHint)}
+                            pwpHint={Boolean(card.pwpHint)}
                           />
                         );
                       })}

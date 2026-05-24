@@ -3,10 +3,13 @@ import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type { ApiResponse } from '../types/common.types';
 import type {
+  CheckoutPricingPreviewData,
+  CheckoutPricingPreviewRequestBody,
   CreatedOrder,
   CreateOrderRequestBody,
   CreateOrderResult,
   OrderDto,
+  OrderLinePricingProgramsSnapshot,
   OrderShippingSnapshot,
   PaymentMethodDto,
   VnpayPaymentUrlData,
@@ -77,6 +80,89 @@ function readShippingSnapshot(d: Record<string, unknown>): OrderShippingSnapshot
 }
 
 /** Chuẩn hóa `data` từ `POST /orders` (hợp đồng mới + snake_case + tương thích đơn phẳng). */
+function readFiniteNumberLoose(v: unknown): number | null {
+  if (v == null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number.parseFloat(String(v).replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
+function readOptionalString(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim() !== '') return value.trim();
+  return null;
+}
+
+function readOptionalRecord(value: unknown): Record<string, string> | null {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, string>;
+  }
+  return null;
+}
+
+function normalizeCheckoutPricingPreview(raw: unknown): CheckoutPricingPreviewData {
+  if (raw == null || typeof raw !== 'object') {
+    throw new Error('Invalid checkout pricing preview response');
+  }
+  const d = raw as Record<string, unknown>;
+  const itemsSubtotal =
+    readFiniteNumberLoose(d.items_subtotal) ?? readFiniteNumberLoose(d.itemsSubtotal);
+  if (itemsSubtotal == null || itemsSubtotal < 0) {
+    throw new Error('Invalid checkout pricing preview: items_subtotal');
+  }
+
+  const linesRaw = d.lines;
+  const lines: CheckoutPricingPreviewData['lines'] = [];
+  if (Array.isArray(linesRaw)) {
+    for (const item of linesRaw) {
+      if (item == null || typeof item !== 'object') continue;
+      const L = item as Record<string, unknown>;
+
+      // IDs — BE trả snake_case từ @JsonProperty
+      const productId =
+        asPositiveInt(L.product_id) ?? asPositiveInt(L.productId) ?? null;
+      const productVariantId =
+        asPositiveInt(L.product_variant_id) ?? asPositiveInt(L.productVariantId) ?? null;
+
+      const productName =
+        readOptionalString(L.product_name) ?? readOptionalString(L.productName);
+      const variantSkuCode =
+        readOptionalString(L.variant_sku_code) ?? readOptionalString(L.variantSkuCode);
+      const variantOptions =
+        readOptionalRecord(L.variant_options) ?? readOptionalRecord(L.variantOptions);
+      const quantity =
+        asPositiveInt(L.quantity) ?? null;
+
+      const unitPrice =
+        readFiniteNumberLoose(L.unit_price) ?? readFiniteNumberLoose(L.unitPrice);
+      const lineTotal =
+        readFiniteNumberLoose(L.line_total) ??
+        readFiniteNumberLoose(L.lineTotal) ??
+        readFiniteNumberLoose(L.line_tototal);
+
+      // pricingPrograms — giữ nguyên object từ BE (snake_case fields)
+      const ppRaw = L.pricing_programs ?? L.pricingPrograms;
+      const pricingPrograms: OrderLinePricingProgramsSnapshot | null =
+        ppRaw != null && typeof ppRaw === 'object' && !Array.isArray(ppRaw)
+          ? (ppRaw as OrderLinePricingProgramsSnapshot)
+          : null;
+
+      lines.push({
+        productId,
+        productVariantId,
+        productName,
+        variantSkuCode,
+        variantOptions,
+        quantity,
+        unitPrice,
+        lineTotal,
+        pricingPrograms,
+      });
+    }
+  }
+
+  return { itemsSubtotal, lines };
+}
+
 function normalizeCreateOrderResult(raw: unknown): CreateOrderResult {
   if (raw == null || typeof raw !== 'object') {
     throw new Error('Invalid create order response');
@@ -142,6 +228,27 @@ const parseApiErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export const orderService = {
+  /** `POST /orders/checkout-pricing-preview` — @see docs/CHECKOUT_ORDER_PRICING_UI.md */
+  async checkoutPricingPreview(
+    lines: CheckoutPricingPreviewRequestBody['lines'],
+    opts?: { signal?: AbortSignal }
+  ): Promise<CheckoutPricingPreviewData> {
+    try {
+      const body: CheckoutPricingPreviewRequestBody = { lines };
+      const { data } = await axiosInstance.post<ApiResponse<unknown>>(
+        API_ENDPOINTS.ORDER.CHECKOUT_PRICING_PREVIEW,
+        body,
+        { signal: opts?.signal }
+      );
+      if (!data.success || data.data === undefined) {
+        throw new Error(data.message || 'Không lấy được bảng giá thanh toán');
+      }
+      return normalizeCheckoutPricingPreview(data.data);
+    } catch (error) {
+      throw new Error(parseApiErrorMessage(error, 'Không lấy được bảng giá thanh toán'));
+    }
+  },
+
   async listPaymentMethods(): Promise<PaymentMethodDto[]> {
     try {
       const { data } = await axiosInstance.get<ApiResponse<PaymentMethodDto[]>>(

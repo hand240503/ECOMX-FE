@@ -9,7 +9,7 @@ import type { ProductFullResponse } from '../../api/types/product.types';
 import { orderService } from '../../api/services';
 import { Button } from '../../components/ui/Button';
 import { useI18n } from '../../i18n/I18nProvider';
-import { orderLineDisplayFromProduct, useOrderDetailProducts } from '../../hooks/useOrderDetailProducts';
+import { orderLineDisplayFromProduct, useOrderDetailProducts, orderLineVariantCaption } from '../../hooks/useOrderDetailProducts';
 import { cn } from '../../lib/cn';
 import { formatPrice } from '../../lib/formatPrice';
 import { isCodPaymentMethod } from '../../lib/paymentMethodUtils';
@@ -191,6 +191,16 @@ export default function OrderDetailTab() {
   const merchandiseSubtotal = useMemo(() => {
     if (!orderData) return 0;
     const olines = orderData.orderDetails ?? [];
+    let fromLines = 0;
+    let counted = 0;
+    for (const line of olines) {
+      const lt = toFiniteNumber(line.lineTotal);
+      if (lt != null && lt >= 0) {
+        fromLines += lt;
+        counted += 1;
+      }
+    }
+    if (olines.length > 0 && counted === olines.length) return fromLines;
     return olines.reduce((s, line) => s + linePaidAmount(line, olines, orderData.total), 0);
   }, [orderData]);
   const shipFeeVnd = useMemo(
@@ -343,8 +353,7 @@ export default function OrderDetailTab() {
         <ul className="m-0 list-none divide-y divide-border p-0">
           {(order.orderDetails ?? []).map((line) => {
             const detailLines = order.orderDetails ?? [];
-            const lineDesc = parseOrderDescriptionJson(line.description ?? null);
-            const variant = lineDesc?.unit?.trim() || '—';
+            const variant = orderLineVariantCaption(line);
             const display = orderLineDisplayFromProduct(line, byId);
             const product = byId.get(line.productId);
             const paid = linePaidAmount(line, detailLines, order.total);
@@ -352,7 +361,7 @@ export default function OrderDetailTab() {
 
             return (
               <li key={line.id} className="px-4 py-4 tablet:px-6">
-                <div className="flex gap-3 items-start">
+                <div className="flex items-start gap-3">
                   <Link
                     to={`/products/${line.productId}`}
                     className="size-[4.5rem] shrink-0 overflow-hidden rounded-sm border border-border bg-background tablet:size-24"

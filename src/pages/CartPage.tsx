@@ -102,7 +102,7 @@ function CartLineDesktop(props: RowInnerProps) {
       </div>
 
       <div className="flex min-h-8 items-center justify-center sm:justify-self-center">
-        <QuantityInput value={line.quantity} onChange={onQuantity} min={1} className={qtyClass} />
+        <QuantityInput value={line.quantity} onChange={onQuantity} min={0} className={qtyClass} />
       </div>
 
       <div
@@ -191,7 +191,7 @@ function CartLineMobile(props: RowInnerProps) {
         <div className="flex min-h-8 items-center justify-between">
           <span className="flex items-center text-gray-600">{t('cart_table_quantity')}</span>
           <div className="flex items-center">
-            <QuantityInput value={line.quantity} onChange={onQuantity} min={1} className={qtyClass} />
+            <QuantityInput value={line.quantity} onChange={onQuantity} min={0} className={qtyClass} />
           </div>
         </div>
         <div className="flex min-h-8 items-center justify-between">
@@ -269,7 +269,7 @@ export default function CartPage() {
     for (const l of lines) {
       if (!selectedKeys.has(cartLineKey(l))) continue;
       const p = byId.get(l.productId);
-      sum += currentUnitPrice(p, l.unitId) * l.quantity;
+      sum += currentUnitPrice(p, l.unitId, l) * l.quantity;
     }
     return sum;
   }, [lines, selectedKeys, byId]);
@@ -301,7 +301,7 @@ export default function CartPage() {
       if (!product && cartProductsLoading) {
         return { unitPriceText: '…', lineSubtotalText: '…' };
       }
-      const u = currentUnitPrice(product, line.unitId);
+      const u = currentUnitPrice(product, line.unitId, line);
       return {
         unitPriceText: formatPrice(u),
         lineSubtotalText: formatPrice(u * line.quantity)
@@ -313,7 +313,7 @@ export default function CartPage() {
   const deleteSelected = useCallback(() => {
     for (const k of selectedKeys) {
       const pair = parseCartLineKey(k);
-      if (pair) removeItem(pair.productId, pair.unitId);
+      if (pair) removeItem(pair.productId, pair.unitId, pair.productVariantId);
     }
   }, [selectedKeys, removeItem]);
 
@@ -423,9 +423,14 @@ export default function CartPage() {
                     t,
                     lang,
                     onToggle: toggleKey,
-                    onQuantity: (n) =>
-                      setQuantity(line.productId, line.unitId, Math.min(999, Math.max(1, n))),
-                    onRemove: () => removeItem(line.productId, line.unitId),
+                    onQuantity: (n) => {
+                      if (n <= 0) {
+                        removeItem(line.productId, line.unitId, line.productVariantId);
+                      } else {
+                        setQuantity(line.productId, line.unitId, Math.min(999, n), line.productVariantId);
+                      }
+                    },
+                    onRemove: () => removeItem(line.productId, line.unitId, line.productVariantId),
                   };
                   return (
                     <li key={k} className="border-b border-[#e8e8e8] last:border-b-0">

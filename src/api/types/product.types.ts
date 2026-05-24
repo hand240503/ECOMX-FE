@@ -20,6 +20,73 @@ export interface ProductPrice {
   unitId: number;
   unitName: string;
   unitRatio: number;
+  /** BE catalog — gắn giá với SKU (admin / list giá). */
+  productVariantId?: number | null;
+}
+
+/** Price Change đang hiệu lực trên SKU — khớp `effective_unit_price` (docs FE giá User/Admin). */
+export interface ActivePriceChangeSnapshot {
+  id: number;
+  productVariantId: number | null;
+  basePrice: number;
+  salePrice: number;
+  startAt: string | null;
+  endAt: string | null;
+  enabled: boolean;
+}
+
+/** Bậc giá theo SL (mix-and-match) — snapshot trên `ProductFullResponse`. */
+export interface VolumePriceTierSnapshot {
+  id: number;
+  productId: number;
+  minQuantity: number;
+  unitPrice: number;
+  enabled: boolean;
+}
+
+/** Purchase-with-purchase — snapshot trên `ProductFullResponse`. */
+export interface PurchaseWithPurchaseProgramSnapshot {
+  id: number;
+  role: 'companion' | 'anchor';
+  anchorProductId: number;
+  companionProductId: number;
+  /** Variant cụ thể của anchor — null = áp dụng cho mọi variant của anchor product. */
+  anchorVariantId: number | null;
+  /** Variant cụ thể của companion. */
+  companionVariantId: number | null;
+  promoUnitPrice: number;
+  minAnchorQuantity: number;
+  companionPromoUnitsPerAnchor: number | null;
+  maxCompanionPromoUnits: number | null;
+  enabled: boolean;
+  /** Tên sản phẩm anchor. */
+  anchorProductName?: string | null;
+  /** Tên sản phẩm companion. */
+  companionProductName?: string | null;
+  /** Ảnh chính sản phẩm anchor — BE enrich từ API /products/{id}/detail */
+  anchorProductMainImageUrl?: string | null;
+  /** Ảnh chính sản phẩm companion — BE enrich từ API /products/{id}/detail */
+  companionProductMainImageUrl?: string | null;
+}
+
+/** Một SKU trong `ProductFullResponse.variants`. */
+export interface ProductVariantResponse {
+  id: number;
+  skuCode?: string | null;
+  optionValues: Record<string, string>;
+  active: boolean;
+  sortOrder: number;
+  prices: ProductPrice[] | null;
+  /** Đơn giá áp dụng snapshot API (ưu tiên hiển thị — có PC → sale). */
+  effectiveUnitPrice?: number | null;
+  activePriceChange?: ActivePriceChangeSnapshot | null;
+  /** Ảnh SKU (khi BE gửi) — PDP / card biến thể; alias snake_case được coerce ở `coerceProductVariant`. */
+  mainImageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  imageUrl?: string | null;
+  coverImageUrl?: string | null;
+  imageUrls?: string[] | null;
+  documents?: ProductDocumentAttachment[] | null;
 }
 
 /** `docs/API_product_policies_FE.md` — phần tử trong `policies` */
@@ -58,6 +125,8 @@ export type ProductDocument = ProductDocumentAttachment;
  */
 export interface ProductFullResponse {
   id: number;
+  /** Mã SKU số (legacy); ưu tiên hiển thị `variants[].skuCode` khi có. */
+  sku?: number | string | null;
   productName: string;
   /** Mô tả ngắn */
   description: string;
@@ -73,7 +142,14 @@ export interface ProductFullResponse {
   modifiedDate: string;
   brand: BrandSummary | null;
   category: CategorySummary | null;
+  /** Giá đại diện list/card — catalog biến thể đại diện; không thay `fromEffectiveUnitPrice` khi có PC (docs FE giá). */
   prices: ProductPrice[] | null;
+  /** Min `effective_unit_price` trên SKU active — nhãn card “Từ … ₫”. */
+  fromEffectiveUnitPrice?: number | null;
+  volumePriceTiers?: VolumePriceTierSnapshot[] | null;
+  purchaseWithPurchasePrograms?: PurchaseWithPurchaseProgramSnapshot[] | null;
+  /** Danh sách SKU; FE nên chuẩn hoá qua `normalizedVariantsFromProduct`. */
+  variants?: ProductVariantResponse[] | unknown[] | null;
   recommendationScore: number | null;
   recommendationSource: string | null;
   averageRating: number | null;
@@ -94,4 +170,11 @@ export interface ProductFullResponse {
 export interface ProductDetailResponse {
   product: ProductFullResponse;
   recommendations: ProductFullResponse[];
+}
+
+/** `GET /products/active-promotions` — docs/active-promotions-api.md */
+export interface ActivePromotionsResponse {
+  price_change: ProductFullResponse[];
+  volume_tier: ProductFullResponse[];
+  purchase_with_purchase: ProductFullResponse[];
 }

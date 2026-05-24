@@ -10,7 +10,7 @@ import { QuantityInput } from '../components/product/QuantityInput';
 import { Button } from '../components/ui/Button';
 import { formatAddressDetail } from '../domain/address/formatAddressDetail';
 import { useEcomxCartProductDetails, cartLineDisplayFromByIds } from '../hooks/useEcomxCartProductDetails';
-import { currentUnitName, currentUnitPrice } from '../lib/cartLineProductResolve';
+import { currentUnitName } from '../lib/cartLineProductResolve';
 import { useI18n } from '../i18n/I18nProvider';
 import { cartLineKey, type CartLine } from '../lib/cartStorage';
 import {
@@ -22,7 +22,7 @@ import { consumeVnpayCheckoutFailure } from '../lib/vnpayCheckoutFailure';
 import { saveVnpayPendingContext, clearVnpayPendingContext } from '../lib/vnpayPendingStorage';
 import { getVnpayResponseCodeMeta } from '../lib/vnpayResponseCodeMap';
 import { savePostActionReturnPath } from '../lib/postActionReturnPath';
-import type { CreateOrderRequestBody } from '../api/types/order.types';
+import type { CreateOrderRequestBody, CheckoutPwpSuggestionDto } from '../api/types/order.types';
 import { formatPrice } from '../lib/formatPrice';
 import { stringifyOrderDescription } from '../lib/orderDescriptionJson';
 import { isCodPaymentMethod } from '../lib/paymentMethodUtils';
@@ -34,6 +34,7 @@ import MainHeader from '../layout/header/MainHeader';
 import { userAddressesQueryKey } from '../hooks/useUserAddresses';
 import { notify } from '../utils/notify';
 import { reportCollectorBuyOnceForLines } from '../lib/collectorBehavior';
+import { PromoLineBadges } from '../components/checkout/PromoLineBadges';
 
 const checkoutQtyClass =
   '!h-8 !shadow-none rounded-sm [&_button]:!h-8 [&_button]:!w-7 [&_input]:!h-8 [&_input]:!w-9 [&_input]:!text-sm tablet:justify-self-center';
@@ -134,6 +135,29 @@ export default function CheckoutPage() {
   const [orderNote, setOrderNote] = useState('');
   const [sellerNote, setSellerNote] = useState('');
 
+  /**
+   * PwP offers mà user đã chấp nhận mua kèm.
+   * Key = offerId, value = full suggestion DTO (để hiển thị companion card + tính order line).
+   */
+  const [acceptedPwpByOfferId, setAcceptedPwpByOfferId] = useState<
+    Record<number, CheckoutPwpSuggestionDto>
+  >({});
+
+  /** Chấp nhận mua kèm: lưu toàn bộ suggestion DTO để derive companion line trong orderDetailsPayload. */
+  const handleAcceptPwpSuggestion = useCallback((suggestion: CheckoutPwpSuggestionDto) => {
+    if (suggestion.companion_variant_id == null) return;
+    setAcceptedPwpByOfferId((prev) => ({ ...prev, [suggestion.offer_id]: suggestion }));
+  }, []);
+
+  /** Từ chối / bỏ chọn một PwP offer. */
+  const handleRejectPwpSuggestion = useCallback((offerId: number) => {
+    setAcceptedPwpByOfferId((prev) => {
+      const next = { ...prev };
+      delete next[offerId];
+      return next;
+    });
+  }, []);
+
   const vnpayFailureMessage = useMemo(() => {
     if (vnpayFailureCode == null) return null;
     const meta = getVnpayResponseCodeMeta(vnpayFailureCode);
@@ -200,17 +224,100 @@ export default function CheckoutPage() {
     setPaymentMethodId((firstCod ?? list[0]).id);
   }, [paymentMethodOptions, paymentMethodId]);
 
-  const itemsTotal = useMemo(() => {
-    let s = 0;
-    for (const l of checkoutLines) {
+  const orderDetailsPayload = useMemo((): CreateOrderRequestBody['orderDetails'] | null => {
+    if (checkoutProductsLoading) return null;
+    const baseLines = checkoutLines.map((l) => {
       const p = byId.get(l.productId);
-      s += currentUnitPrice(p, l.unitId) * l.quantity;
+      const un = currentUnitName(p, l.unitId, l);
+      const row: CreateOrderRequestBody['orderDetails'][number] = {
+        quantity: l.quantity,
+        description: stringifyOrderDescription({
+          unit: un === '—' ? '' : un,
+          message: '',
+          note: '',
+        }),
+      };
+      if (l.productVariantId != null && l.productVariantId > 0) {
+        row.productVariantId = l.productVariantId;
+        row.productId = l.productId;
+      } else {
+        row.productId = l.productId;
+      }
+      return row;
+    });
+    // Derive companion lines từ PwP đã được user chấp nhận mua kèm
+    const companionLines = Object.entries(acceptedPwpByOfferId).map(([, suggestion]) => {
+      const anchorVarId = suggestion.anchor_variant_id;
+      const anchorQty = anchorVarId
+        ? checkoutLines
+            .filter((l) => l.productVariantId === anchorVarId)
+            .reduce((s, l) => s + l.quantity, 0)
+        : 1;
+      const per = suggestion.companion_promo_units_per_anchor ?? 1;
+      const maxQ = suggestion.max_companion_promo_units;
+      const eligibleQty = maxQ != null ? Math.min(anchorQty * per, maxQ) : anchorQty * per;
+      const qty = Math.max(1, eligibleQty);
+      const companionLine: CreateOrderRequestBody['orderDetails'][number] = {
+        productVariantId: suggestion.companion_variant_id!,
+        quantity: qty,
+        description: '',
+      };
+      if (suggestion.companion_product_id != null) {
+        companionLine.productId = suggestion.companion_product_id;
+      }
+      return companionLine;
+    });
+    return [...baseLines, ...companionLines];
+  }, [checkoutProductsLoading, checkoutLines, byId, acceptedPwpByOfferId]);
+
+  const pricingPreviewQuery = useQuery({
+    queryKey: ['checkout-pricing-preview', JSON.stringify(orderDetailsPayload)] as const,
+    queryFn: ({ signal }) =>
+      orderService.checkoutPricingPreview(orderDetailsPayload!, { signal }),
+    enabled: orderDetailsPayload != null && checkoutLines.length > 0,
+    staleTime: 0,
+  });
+
+  const previewSnapshot = pricingPreviewQuery.data;
+  const previewLines = previewSnapshot?.lines;
+
+  /** Map variant_id → preview line để tra cứu nhanh (bao gồm cả companion đã được accept). */
+  const previewLineByVariantId = useMemo(() => {
+    const map = new Map<number, (typeof previewLines)[number]>();
+    for (const pl of previewLines ?? []) {
+      if (pl.productVariantId != null) {
+        map.set(pl.productVariantId, pl);
+      }
     }
-    return s;
-  }, [checkoutLines, byId]);
+    return map;
+  }, [previewLines]);
+
+  /**
+   * Suggestions PwP hiển thị cho user: lấy từ response preview, lọc bỏ những offer
+   * đã được accept (companion đã có trong payload → server không trả suggestion nữa).
+   */
+  const pwpSuggestions = previewSnapshot?.pwp_suggestions ?? [];
+
+  const previewBusy =
+    orderDetailsPayload != null &&
+    checkoutLines.length > 0 &&
+    (pricingPreviewQuery.isPending || pricingPreviewQuery.isFetching);
+  const previewFailed =
+    orderDetailsPayload != null &&
+    checkoutLines.length > 0 &&
+    pricingPreviewQuery.isError;
+
+  const itemsMerchandise =
+    previewSnapshot?.itemsSubtotal != null ? previewSnapshot.itemsSubtotal : null;
   const voucherDiscount = 0;
   const shippingFeeVnd = shippingQuoteQuery.data?.shippingFeeVnd;
-  const grandTotal = itemsTotal + (shippingFeeVnd ?? 0) - voucherDiscount;
+  const grandTotalForSummary =
+    itemsMerchandise != null ? itemsMerchandise + (shippingFeeVnd ?? 0) - voucherDiscount : null;
+
+  const pricingPreviewSubmitOk =
+    pricingPreviewQuery.isSuccess &&
+    pricingPreviewQuery.data != null &&
+    !pricingPreviewQuery.isFetching;
 
   const recipientName = user?.userInfo?.fullName?.trim() || user?.username?.trim() || '';
   const recipientPhone = user?.phoneNumber?.trim() || user?.userInfo?.telephone?.trim() || '';
@@ -239,21 +346,11 @@ export default function CheckoutPage() {
       if (q != null && Number.isFinite(q.distanceMeters) && q.distanceMeters >= 0) {
         orderBody.deliveryDistanceMeters = Math.round(q.distanceMeters);
       }
+      // Dùng lại orderDetailsPayload (đã bao gồm companion PwP được accept)
+      if (!orderDetailsPayload) throw new Error('validation');
       return orderService.createOrder({
         order: orderBody,
-        orderDetails: checkoutLines.map((l: CartLine) => {
-          const p = byId.get(l.productId);
-          const un = currentUnitName(p, l.unitId);
-          return {
-            productId: l.productId,
-            quantity: l.quantity,
-            description: stringifyOrderDescription({
-              unit: un === '—' ? '' : un,
-              message: '',
-              note: '',
-            }),
-          };
-        }),
+        orderDetails: orderDetailsPayload,
       });
     },
     onSuccess: async (result) => {
@@ -288,7 +385,7 @@ export default function CheckoutPage() {
       void queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       const created = result.order;
       for (const l of checkoutLines) {
-        removeItem(l.productId, l.unitId);
+        removeItem(l.productId, l.unitId, l.productVariantId);
       }
       notify.success(t('checkout_success').replace('{code}', created.orderCode));
       skipLeaveConfirmRef.current = true;
@@ -318,7 +415,8 @@ export default function CheckoutPage() {
     !placeOrderMutation.isPending &&
     !vnpayRedirecting &&
     !checkoutProductsLoading &&
-    shippingQuoteReady;
+    shippingQuoteReady &&
+    pricingPreviewSubmitOk;
 
   const selectedPayment = paymentMethodOptions.find((m) => m.id === paymentMethodId);
   const isVnpaySelected = isVnpayPaymentMethodCode(selectedPayment?.code);
@@ -419,19 +517,84 @@ export default function CheckoutPage() {
                 <span className="text-right">{t('checkout_col_subtotal')}</span>
               </div>
 
+              {previewFailed ? (
+                <div className="border-b border-border bg-danger/[0.06] px-4 py-2.5 tablet:px-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="m-0 text-caption text-danger">{t('checkout_pricing_error')}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-sm"
+                      onClick={() => void pricingPreviewQuery.refetch()}
+                    >
+                      {t('checkout_pricing_retry')}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {previewBusy && !previewSnapshot ? (
+                <p className="mb-0 border-b border-border px-4 py-2 text-caption text-text-secondary tablet:px-5">
+                  {t('checkout_pricing_loading')}
+                </p>
+              ) : null}
+
               <ul className="m-0 divide-y divide-border p-0">
-                {checkoutLines.map((line) => {
+                {checkoutLines.map((line, lineIndex) => {
                   const display = cartLineDisplayFromByIds(line, byId);
                   const p = byId.get(line.productId);
-                  const up = currentUnitPrice(p, line.unitId);
-                  const lineSub = up * line.quantity;
-                  const priceText =
-                    !p && checkoutProductsLoading ? '…' : formatPrice(up);
-                  const lineSubText =
-                    !p && checkoutProductsLoading ? '…' : formatPrice(lineSub);
+                  const pl = previewLines?.[lineIndex];
+                  const hasPreviewData = previewSnapshot != null;
+                  const programs = pl?.pricingPrograms ?? null;
+
+                  // ── Giá hiển thị trên cột "Đơn giá" ────────────────────────────
+                  // Nếu có PC: hiển thị giá sau khuyến mãi (đã là finalUnitPrice từ BE)
+                  // kèm giá gốc gạch ngang bên cạnh
+                  const pcOriginalPrice: number | null =
+                    programs?.price_change?.base_price != null &&
+                    programs.price_change.sale_price != null
+                      ? programs.price_change.base_price
+                      : null;
+
+                  let priceText: string;
+                  let lineSubText: string;
+                  if (previewFailed) {
+                    priceText = '—';
+                    lineSubText = '—';
+                  } else if (!hasPreviewData && (previewBusy || orderDetailsPayload == null)) {
+                    priceText = '…';
+                    lineSubText = '…';
+                  } else if (pl?.unitPrice != null) {
+                    priceText = formatPrice(pl.unitPrice);
+                    lineSubText = formatPrice(
+                      pl.lineTotal != null ? pl.lineTotal : pl.unitPrice * line.quantity
+                    );
+                  } else if (!p && checkoutProductsLoading) {
+                    priceText = '…';
+                    lineSubText = '…';
+                  } else {
+                    priceText = '—';
+                    lineSubText = '—';
+                  }
+
+                  // ── PwP: suggestions cho anchor này + companion đã accepted ───
+                  const anchorVariantId = line.productVariantId;
+                  // Suggestions chưa được accept (BE trả về khi companion chưa trong giỏ)
+                  const linePwpSuggestions = pwpSuggestions.filter(
+                    (s) =>
+                      s.anchor_variant_id === anchorVariantId &&
+                      !(s.offer_id in acceptedPwpByOfferId)
+                  );
+                  // Companion đã được accept cho anchor này
+                  const lineAcceptedCompanions = Object.values(acceptedPwpByOfferId).filter(
+                    (s) => s.anchor_variant_id === anchorVariantId
+                  );
+
                   return (
                     <li key={cartLineKey(line)} className="px-4 py-4 tablet:px-5">
                       <div className="grid grid-cols-1 gap-3 tablet:grid-cols-[1fr_6.5rem_6.5rem_6.5rem] tablet:items-center tablet:gap-3">
+                        {/* ── Tên + variant + promo badges ─────────────────────── */}
                         <div className="flex min-w-0 gap-3">
                           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-border bg-background">
                             {display.thumbnailUrl ? (
@@ -452,14 +615,36 @@ export default function CheckoutPage() {
                             <p className="mt-0.5 text-caption text-text-secondary">
                               {t('checkout_variant_prefix')} {display.unitName}
                             </p>
+                            {/* Badge ưu đãi PwP / PC / Volume — chỉ hiện khi đã có preview */}
+                            {hasPreviewData && (
+                              <PromoLineBadges programs={programs} quantity={line.quantity} />
+                            )}
                           </div>
                         </div>
+
+                        {/* ── Đơn giá (+ giá gốc gạch ngang nếu có PC) ──────── */}
                         <div className="flex justify-between gap-2 tablet:block tablet:text-center">
                           <span className="text-caption text-text-secondary tablet:hidden">
                             {t('checkout_col_unit_price')}
                           </span>
-                          <span className="text-body font-medium text-text-primary">{priceText}</span>
+                          <div className="flex flex-col items-end tablet:items-center">
+                            <span
+                              className={cn(
+                                'text-body font-medium',
+                                pcOriginalPrice != null ? 'text-danger' : 'text-text-primary'
+                              )}
+                            >
+                              {priceText}
+                            </span>
+                            {pcOriginalPrice != null && priceText !== '—' && priceText !== '…' && (
+                              <span className="text-[11px] text-text-secondary line-through">
+                                {formatPrice(pcOriginalPrice)}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {/* ── Số lượng ──────────────────────────────────────── */}
                         <div className="flex justify-between gap-2 tablet:flex tablet:flex-col tablet:items-center tablet:justify-center tablet:text-center">
                           <span className="text-caption text-text-secondary tablet:hidden">
                             {t('checkout_col_quantity')}
@@ -472,19 +657,184 @@ export default function CheckoutPage() {
                               setQuantity(
                                 line.productId,
                                 line.unitId,
-                                Math.min(999, Math.max(1, n))
+                                Math.min(999, Math.max(1, n)),
+                                line.productVariantId
                               )
                             }
                             className={checkoutQtyClass}
                           />
                         </div>
+
+                        {/* ── Thành tiền ────────────────────────────────────── */}
                         <div className="flex justify-between gap-2 tablet:block tablet:text-right">
                           <span className="text-caption text-text-secondary tablet:hidden">
                             {t('checkout_col_subtotal')}
                           </span>
-                          <span className="text-body font-semibold text-text-primary">{lineSubText}</span>
+                          <span
+                            className={cn(
+                              'text-body font-semibold',
+                              programs != null &&
+                                (programs.price_change != null ||
+                                  programs.volume_tier != null ||
+                                  programs.purchase_with_purchase != null)
+                                ? 'text-danger'
+                                : 'text-text-primary'
+                            )}
+                          >
+                            {lineSubText}
+                          </span>
                         </div>
                       </div>
+
+                      {/* ── Companion đã accepted: hiển thị dưới anchor ──────── */}
+                      {lineAcceptedCompanions.map((suggestion) => {
+                        const cplVarId = suggestion.companion_variant_id;
+                        const cpl =
+                          cplVarId != null ? previewLineByVariantId.get(cplVarId) : undefined;
+                        const cUnitPrice = cpl?.unitPrice;
+                        const cLineTotal = cpl?.lineTotal;
+                        const cPrograms = cpl?.pricingPrograms ?? null;
+                        return (
+                          <div
+                            key={`companion-accepted-${suggestion.offer_id}`}
+                            className="mt-3 ml-4 rounded-md border border-success/30 bg-success/5 p-3 tablet:ml-[4.75rem]"
+                          >
+                            <div className="mb-2 flex items-center gap-1.5">
+                              <span className="inline-flex items-center rounded-sm bg-success/15 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-success">
+                                Mua kèm ưu đãi
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              {/* Thumbnail companion */}
+                              <div className="h-12 w-12 shrink-0 overflow-hidden rounded border border-border bg-background">
+                                {suggestion.companion_thumbnail_url ? (
+                                  <img
+                                    src={suggestion.companion_thumbnail_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center text-[10px] text-text-disabled">
+                                    —
+                                  </div>
+                                )}
+                              </div>
+                              {/* Tên + giá */}
+                              <div className="min-w-0 flex-1">
+                                <p className="line-clamp-1 text-body font-medium text-text-primary">
+                                  {suggestion.companion_product_name ?? '—'}
+                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                  <span className="text-body font-semibold text-success">
+                                    {cUnitPrice != null
+                                      ? formatPrice(cUnitPrice)
+                                      : formatPrice(suggestion.promo_unit_price)}
+                                  </span>
+                                  {suggestion.companion_regular_price != null &&
+                                    suggestion.companion_regular_price > suggestion.promo_unit_price && (
+                                      <span className="text-[11px] text-text-secondary line-through">
+                                        {formatPrice(suggestion.companion_regular_price)}
+                                      </span>
+                                    )}
+                                  {cLineTotal != null && (
+                                    <span className="text-caption text-text-secondary">
+                                      = {formatPrice(cLineTotal)}
+                                    </span>
+                                  )}
+                                </div>
+                                {hasPreviewData && cPrograms && (
+                                  <PromoLineBadges programs={cPrograms} />
+                                )}
+                              </div>
+                              {/* Nút bỏ chọn */}
+                              <button
+                                type="button"
+                                disabled={placeOrderMutation.isPending || vnpayRedirecting}
+                                onClick={() => handleRejectPwpSuggestion(suggestion.offer_id)}
+                                className="shrink-0 text-caption text-text-secondary underline hover:text-danger disabled:opacity-50"
+                              >
+                                Bỏ chọn
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* ── PwP suggestion chưa được accept: hiển thị card lựa chọn ── */}
+                      {linePwpSuggestions.map((suggestion) => (
+                        <div
+                          key={`pwp-suggestion-${suggestion.offer_id}`}
+                          className="mt-3 ml-4 rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-3 tablet:ml-[4.75rem]"
+                        >
+                          <p className="mb-2 text-caption font-semibold text-primary">
+                            🎁 Ưu đãi mua kèm
+                          </p>
+                          <div className="flex items-start gap-3">
+                            {/* Thumbnail companion */}
+                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded border border-border bg-background">
+                              {suggestion.companion_thumbnail_url ? (
+                                <img
+                                  src={suggestion.companion_thumbnail_url}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center text-[10px] text-text-disabled">
+                                  —
+                                </div>
+                              )}
+                            </div>
+                            {/* Tên + giá */}
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-1 text-body font-medium text-text-primary">
+                                {suggestion.companion_product_name ?? '—'}
+                              </p>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                                <span className="text-body font-semibold text-success">
+                                  {formatPrice(suggestion.promo_unit_price)}
+                                </span>
+                                {suggestion.companion_regular_price != null &&
+                                  suggestion.companion_regular_price > suggestion.promo_unit_price && (
+                                    <span className="text-[11px] text-text-secondary line-through">
+                                      {formatPrice(suggestion.companion_regular_price)}
+                                    </span>
+                                  )}
+                              </div>
+                            </div>
+                          </div>
+                          {/* Lựa chọn */}
+                          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-success/50 bg-success/5 px-3 py-2 hover:bg-success/10">
+                              <input
+                                type="radio"
+                                name={`pwp-${suggestion.offer_id}`}
+                                className="size-3.5 accent-success"
+                                checked={false}
+                                onChange={() => handleAcceptPwpSuggestion(suggestion)}
+                                disabled={placeOrderMutation.isPending || vnpayRedirecting}
+                              />
+                              <span className="text-caption font-medium text-success">
+                                Mua kèm với giá {formatPrice(suggestion.promo_unit_price)}
+                              </span>
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 hover:bg-background/70">
+                              <input
+                                type="radio"
+                                name={`pwp-${suggestion.offer_id}`}
+                                className="size-3.5 accent-primary"
+                                checked={true}
+                                onChange={() => {/* already not accepted */}}
+                                disabled={placeOrderMutation.isPending || vnpayRedirecting}
+                              />
+                              <span className="text-caption text-text-secondary">
+                                Không áp dụng ưu đãi
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      ))}
                     </li>
                   );
                 })}
@@ -550,7 +900,13 @@ export default function CheckoutPage() {
                   <span className="text-text-secondary">
                     {t('checkout_shop_subtotal').replace('{n}', String(itemCount))}
                   </span>{' '}
-                  <span className="font-bold text-primary">{formatPrice(grandTotal)}</span>
+                  <span className="font-bold text-primary">
+                    {grandTotalForSummary != null
+                      ? formatPrice(grandTotalForSummary)
+                      : previewFailed
+                        ? '—'
+                        : '…'}
+                  </span>
                 </p>
               </div>
             </section>
@@ -639,7 +995,13 @@ export default function CheckoutPage() {
               <div className="mt-6 space-y-2 border-t border-border pt-4 text-body">
                 <div className="flex justify-between gap-4">
                   <span className="text-text-secondary">{t('checkout_summary_items')}</span>
-                  <span className="font-medium text-text-primary">{formatPrice(itemsTotal)}</span>
+                  <span className="font-medium text-text-primary">
+                    {itemsMerchandise != null
+                      ? formatPrice(itemsMerchandise)
+                      : previewFailed
+                        ? '—'
+                        : '…'}
+                  </span>
                 </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-text-secondary">{t('checkout_summary_shipping')}</span>
@@ -668,7 +1030,13 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between gap-4 pt-2 text-title">
                   <span className="text-text-primary">{t('checkout_summary_total')}</span>
-                  <span className="font-bold text-primary">{formatPrice(grandTotal)}</span>
+                  <span className="font-bold text-primary">
+                    {grandTotalForSummary != null
+                      ? formatPrice(grandTotalForSummary)
+                      : previewFailed
+                        ? '—'
+                        : '…'}
+                  </span>
                 </div>
               </div>
 

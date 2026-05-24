@@ -88,6 +88,10 @@ const CartItemHybridProductFeed = ({ cartProductIds, title }: CartItemHybridProd
               soldCount={product.soldCount}
               location={product.location}
               isFreeship={product.isFreeship}
+              priceIsFrom={Boolean(product.priceIsFrom)}
+              showPcSaleBadge={Boolean(product.showPcSaleBadge)}
+              volumeTierHint={Boolean(product.volumeTierHint)}
+              pwpHint={Boolean(product.pwpHint)}
             />
           ))}
         </div>

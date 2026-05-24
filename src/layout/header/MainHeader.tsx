@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Bell, SlidersHorizontal, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
 import { productService } from '../../api/services/productService';
@@ -9,15 +9,12 @@ import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
 import flagVi from '../../assets/flags/vn.png';
 import flagEn from '../../assets/flags/gb.png';
-import cartIcon from '../../assets/icon/cart.png';
 import { useAuth } from '../../app/auth/AuthProvider';
 import { buildUserBadge } from '../../domain/user/buildUserBadge';
 import { authService } from '../../api/services';
 import { useRouteLoadingNavigation } from '../../app/loading/useRouteLoadingNavigation';
 import { decodeSearchQuery } from '../../hooks/useSearchUrlState';
 import { pushSearchHistory } from '../../lib/searchHistory';
-import { useUserAddresses } from '../../hooks/useUserAddresses';
-import { formatAddressDetail } from '../../domain/address/formatAddressDetail';
 import { cn } from '../../lib/cn';
 import { useCart } from '../../app/cart/CartProvider';
 
@@ -26,128 +23,105 @@ const HEADER_SEARCH_SUGGEST_LIMIT = 5;
 
 const formatSuggestPrice = (value: number) => `${value.toLocaleString('vi-VN')} ₫`;
 
+/* ── Nav items cố định ── */
+const NAV_ITEMS = [
+  { label: 'Trang chủ',           path: '/',                                      exact: true  },
+  { label: 'Laptop',              path: '/products?category=LAPTOP',              exact: false },
+  { label: 'Điện thoại',          path: '/products?category=SMARTPHONE',          exact: false },
+  { label: 'Tablet',              path: '/products?category=TABLET',              exact: false },
+  { label: 'Gaming',              path: '/products?category=GAMING',              exact: false },
+  { label: 'Phụ kiện',            path: '/products?category=ACCESSORIES',         exact: false },
+  { label: 'Đồng hồ thông minh',  path: '/products?category=SMARTWATCH',          exact: false },
+  { label: 'Ưu đãi hot',          path: '/products/hot-sale',                     exact: false },
+];
+
 const MainHeader = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const langWrapperRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [overlayTop, setOverlayTop] = useState(0);
+
   const { isTopLoadingBarVisible, navigateWithLoading, startRouteTransition } = useRouteLoadingNavigation();
   const location = useLocation();
-  const isHomeActive = location.pathname === '/';
-  const isCartActive = location.pathname === '/cart';
-  const isAccountActive =
-    location.pathname === '/account' || location.pathname.startsWith('/account/');
+
   const debouncedSearchQuery = useDebouncedValue(searchQuery, HEADER_SEARCH_SUGGEST_DEBOUNCE_MS);
   const debouncedTrim = debouncedSearchQuery.trim();
   const typingTrim = searchQuery.trim();
-  const isWaitingDebounce =
-    isSearchOpen && typingTrim.length > 0 && typingTrim !== debouncedTrim;
+  const isWaitingDebounce = isSearchOpen && typingTrim.length > 0 && typingTrim !== debouncedTrim;
 
   const headerSuggestQuery = useQuery({
     queryKey: ['products', 'search', 'header-suggest', debouncedTrim, HEADER_SEARCH_SUGGEST_LIMIT],
     queryFn: ({ signal }) =>
-      productService.search({
-        q: debouncedTrim,
-        page: 0,
-        limit: HEADER_SEARCH_SUGGEST_LIMIT,
-        signal,
-      }),
+      productService.search({ q: debouncedTrim, page: 0, limit: HEADER_SEARCH_SUGGEST_LIMIT, signal }),
     enabled: isSearchOpen && debouncedTrim.length > 0,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
   const { lang, setLang, t } = useI18n();
   const { totalQuantity: cartCount } = useCart();
+
   const langOptions: { value: Lang; label: string; flag: string }[] = [
     { value: 'vi', label: t('lang_vi'), flag: flagVi },
-    { value: 'en', label: t('lang_en'), flag: flagEn }
+    { value: 'en', label: t('lang_en'), flag: flagEn },
   ];
   const currentLang = langOptions.find((item) => item.value === lang) ?? langOptions[0];
+
   const { user, isAuthenticated } = useAuth();
-  const { data: addressList } = useUserAddresses({ enabled: isAuthenticated });
-
-  const deliveryAddressLine = useMemo(() => {
-    if (!isAuthenticated) return null;
-    if (addressList != null && addressList.length > 0) {
-      const picked = addressList.find((a) => a.isDefault) ?? addressList[0];
-      return formatAddressDetail(picked);
-    }
-    if (user?.defaultAddress) {
-      return formatAddressDetail(user.defaultAddress);
-    }
-    return null;
-  }, [isAuthenticated, addressList, user?.defaultAddress]);
-
   const userBadge = buildUserBadge(
-    {
-      fullName: user?.userInfo?.fullName,
-      email: user?.email,
-      avatar: user?.userInfo?.avatar
-    },
+    { fullName: user?.userInfo?.fullName, email: user?.email, avatar: user?.userInfo?.avatar },
     t('header_account')
   );
 
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-
+  /* ── Close on outside click ── */
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
-
-      if (searchWrapperRef.current && !searchWrapperRef.current.contains(target)) {
-        setIsSearchOpen(false);
-      }
-      if (langWrapperRef.current && !langWrapperRef.current.contains(target)) {
-        setIsLangOpen(false);
-      }
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(target)) setIsSearchOpen(false);
+      if (langWrapperRef.current && !langWrapperRef.current.contains(target)) setIsLangOpen(false);
     };
-
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  /* ── Overlay top ── */
   useEffect(() => {
-    const updateOverlayTop = () => {
+    const update = () => {
       if (!headerRef.current) return;
-      const rect = headerRef.current.getBoundingClientRect();
-      setOverlayTop(rect.bottom); // theo viewport, dùng cho fixed
+      setOverlayTop(headerRef.current.getBoundingClientRect().bottom);
     };
-
     if (isSearchOpen) {
-      updateOverlayTop();
-      window.addEventListener('resize', updateOverlayTop);
-      window.addEventListener('scroll', updateOverlayTop);
+      update();
+      window.addEventListener('resize', update);
+      window.addEventListener('scroll', update);
     }
-
     return () => {
-      window.removeEventListener('resize', updateOverlayTop);
-      window.removeEventListener('scroll', updateOverlayTop);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update);
     };
   }, [isSearchOpen]);
 
-  const handleLogout = async () => {
-    await authService.logout();
-    navigateWithLoading('/login');
-  };
-
+  /* ── Sync search query on /search ── */
   useEffect(() => {
     if (location.pathname !== '/search') return;
     const q = new URLSearchParams(location.search).get('q');
     setSearchQuery(decodeSearchQuery(q));
   }, [location.pathname, location.search]);
 
+  const handleLogout = async () => {
+    await authService.logout();
+    navigateWithLoading('/login');
+  };
+
   const submitSearch = () => {
     const trimmed = searchQuery.trim();
     if (trimmed) pushSearchHistory(trimmed);
     setIsSearchOpen(false);
-    navigateWithLoading({
-      pathname: '/search',
-      search: trimmed ? `?q=${encodeURIComponent(trimmed)}` : '',
-    });
+    navigateWithLoading({ pathname: '/search', search: trimmed ? `?q=${encodeURIComponent(trimmed)}` : '' });
   };
 
   const pickSuggestedProduct = (productName: string) => {
@@ -156,392 +130,320 @@ const MainHeader = () => {
     setSearchQuery(name);
     pushSearchHistory(name);
     setIsSearchOpen(false);
-    navigateWithLoading({
-      pathname: '/search',
-      search: `?q=${encodeURIComponent(name)}`,
-    });
+    navigateWithLoading({ pathname: '/search', search: `?q=${encodeURIComponent(name)}` });
+  };
+
+  /* ── Active nav ── */
+  const isNavActive = (item: (typeof NAV_ITEMS)[number]) => {
+    if (item.exact) return location.pathname === item.path;
+    const [p, qs] = item.path.split('?');
+    if (location.pathname !== p) return false;
+    if (!qs) return true;
+    const params = new URLSearchParams(qs);
+    const current = new URLSearchParams(location.search);
+    return [...params.entries()].every(([k, v]) => current.get(k) === v);
   };
 
   return (
     <header
       ref={headerRef}
-      className="z-40 w-full border-b bg-white shadow-[0_1px_0_rgba(15,23,42,0.06)]"
+      className="sticky top-0 z-40 w-full border-b border-border bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
     >
-      <div className="w-full flex justify-center">
-        <div className="mx-auto flex w-full max-w-container items-start gap-6 px-4 py-3 tablet:px-6">
-          <div onClick={() => navigateWithLoading('/')} className="w-[110px] cursor-pointer flex flex-col items-center justify-center flex-shrink-0">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg px-4 py-2.5 w-full flex justify-center shadow-md hover:shadow-lg transition-shadow">
-              <span className="text-white font-black text-2xl leading-none tracking-tight">
-                ECOMX
-              </span>
-            </div>
-            <span className="mt-1.5 text-[11px] font-semibold text-gray-600 text-center tracking-wide">
-              {t('header_tagline')}
-            </span>
+      {/* ══ ROW 1: Logo | Search | Actions ══ */}
+      <div className="mx-auto flex w-full max-w-container items-center gap-3 px-4 py-2.5 tablet:px-6">
+
+        {/* Logo */}
+        <button
+          type="button"
+          onClick={() => navigateWithLoading('/')}
+          className="flex-shrink-0 flex items-center outline-none focus:outline-none"
+          aria-label="Trang chủ"
+        >
+          <span className="text-[22px] font-black leading-none tracking-tight">
+            <span className="text-danger">E</span>
+            <span className="text-gray-900">com</span>
+            <span className="text-danger">X</span>
+          </span>
+        </button>
+
+        {/* Search bar */}
+        <div ref={searchWrapperRef} className="relative flex-1 min-w-0">
+          <div
+            className={cn(
+              'flex items-center h-9 rounded-full border bg-[#F5F7FA] px-3 gap-2 transition-all',
+              isSearchOpen ? 'border-danger/50 ring-2 ring-danger/10' : 'border-border hover:border-gray-300'
+            )}
+          >
+            {/* Search icon */}
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+
+            {/* Input */}
+            <input
+              type="text"
+              placeholder={t('header_search_placeholder')}
+              value={searchQuery}
+              onFocus={() => setIsSearchOpen(true)}
+              onClick={() => setIsSearchOpen(true)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchQuery(v);
+                if (location.pathname === '/search' && v === '') {
+                  navigateWithLoading({ pathname: '/search', search: '' });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); submitSearch(); }
+              }}
+              className="flex-1 bg-transparent text-sm text-gray-800 outline-none border-none placeholder:text-gray-400 focus:outline-none focus:ring-0 min-w-0"
+            />
+
+            {/* Filter icon */}
+            <button
+              type="button"
+              onClick={submitSearch}
+              className="flex-shrink-0 text-gray-400 hover:text-danger transition-colors outline-none focus:outline-none"
+              aria-label="Lọc"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="flex items-center gap-6">
-              <div ref={searchWrapperRef} className="flex-1 relative">
-                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white h-10">
-                  <img
-                    className="w-5 h-5 ml-4 mr-3"
-                    src="https://salt.tikicdn.com/ts/upload/33/d0/37/6fef2e788f00a16dc7d5a1dfc5d0e97a.png"
-                    alt="icon-search"
-                  />
-
-                  <input
-                    data-view-id="main_search_form_input"
-                    type="text"
-                    placeholder={t('header_search_placeholder')}
-                    value={searchQuery}
-                    onFocus={() => setIsSearchOpen(true)}
-                    onClick={() => setIsSearchOpen(true)}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setSearchQuery(v);
-                      if (location.pathname === '/search' && v === '') {
-                        navigateWithLoading({ pathname: '/search', search: '' });
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        submitSearch();
-                      }
-                    }}
-                    className="flex-1 h-full text-sm outline-none border-none focus:outline-none focus:ring-0"
-                  />
-
-                  <button
-                    type="button"
-                    data-view-id="main_search_form_button"
-                    onClick={() => submitSearch()}
-                    className="h-full px-5 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
-                  >
-                    {t('header_search_button')}
-                  </button>
+          {/* Search dropdown */}
+          {isSearchOpen && (
+            <div
+              className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 max-h-[360px] overflow-hidden rounded-xl border border-border bg-white shadow-xl"
+              role="listbox"
+              aria-label={t('header_search_suggestions_title')}
+            >
+              <div className="flex max-h-[360px] flex-col overflow-y-auto">
+                <div className="sticky top-0 border-b border-border bg-white px-3 py-2">
+                  <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wide">
+                    {t('header_search_suggestions_title')}
+                  </p>
                 </div>
 
-                {isSearchOpen && (
-                  <div
-                    className="absolute left-0 right-0 top-[calc(100%+2px)] z-40 max-h-[360px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
-                    role="listbox"
-                    aria-label={t('header_search_suggestions_title')}
-                  >
-                    <div className="flex max-h-[360px] flex-col overflow-y-auto">
-                      <div className="sticky top-0 border-b border-border bg-surface px-3 py-2">
-                        <p className="text-caption font-semibold text-text-primary">
-                          {t('header_search_suggestions_title')}
-                        </p>
-                      </div>
-
-                      {isWaitingDebounce && (
-                        <div className="flex items-center gap-2 px-3 py-6 text-caption text-text-secondary">
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden />
-                          {t('header_search_suggestions_waiting')}
-                        </div>
-                      )}
-
-                      {!isWaitingDebounce &&
-                        debouncedTrim.length > 0 &&
-                        headerSuggestQuery.isLoading && (
-                          <div className="space-y-2 px-3 py-3">
-                            {Array.from({ length: HEADER_SEARCH_SUGGEST_LIMIT }).map((_, i) => (
-                              <div
-                                key={i}
-                                className="flex animate-pulse gap-3 rounded-md border border-border p-2"
-                              >
-                                <div className="h-12 w-12 shrink-0 rounded bg-border" />
-                                <div className="flex flex-1 flex-col justify-center gap-2">
-                                  <div className="h-3 w-[80%] rounded bg-border" />
-                                  <div className="h-3 w-1/3 rounded bg-border" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                      {!isWaitingDebounce &&
-                        debouncedTrim.length > 0 &&
-                        !headerSuggestQuery.isLoading &&
-                        headerSuggestQuery.isError && (
-                          <p className="px-3 py-6 text-center text-caption text-text-secondary">
-                            {t('header_search_suggestions_error')}
-                          </p>
-                        )}
-
-                      {!isWaitingDebounce &&
-                        debouncedTrim.length > 0 &&
-                        !headerSuggestQuery.isLoading &&
-                        !headerSuggestQuery.isError &&
-                        (headerSuggestQuery.data?.products?.length ?? 0) === 0 && (
-                          <p className="px-3 py-6 text-center text-caption text-text-secondary">
-                            {t('header_search_suggestions_empty')}
-                          </p>
-                        )}
-
-                      {!isWaitingDebounce &&
-                        debouncedTrim.length > 0 &&
-                        !headerSuggestQuery.isLoading &&
-                        !headerSuggestQuery.isError &&
-                        (headerSuggestQuery.data?.products?.length ?? 0) > 0 &&
-                        headerSuggestQuery.data!.products
-                          .slice(0, HEADER_SEARCH_SUGGEST_LIMIT)
-                          .map((p) => {
-                            const card = mapProductFullToCard(p);
-                            return (
-                              <button
-                                key={p.id}
-                                type="button"
-                                role="option"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => pickSuggestedProduct(card.name)}
-                                className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-                              >
-                                <img
-                                  src={card.image}
-                                  alt=""
-                                  className="h-12 w-12 shrink-0 rounded-md object-cover"
-                                  loading="lazy"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <p className="line-clamp-2 text-body text-text-primary">
-                                    {card.name}
-                                  </p>
-                                  <p className="mt-0.5 text-caption font-semibold text-danger">
-                                    {formatSuggestPrice(card.price)}
-                                  </p>
-                                </div>
-                              </button>
-                            );
-                          })}
-                    </div>
+                {isWaitingDebounce && (
+                  <div className="flex items-center gap-2 px-3 py-6 text-caption text-text-secondary">
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-danger" aria-hidden />
+                    {t('header_search_suggestions_waiting')}
                   </div>
                 )}
-              </div>
 
-              <div data-view-id="header_user_shortcut" className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigateWithLoading('/')}
-                  className={cn(
-                    'h-10 px-3 flex items-center gap-2 rounded-lg transition-colors outline-none focus:outline-none focus:ring-0',
-                    isHomeActive
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  )}
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-                  </svg>
-                  <span className="text-sm font-medium hidden xl:block">{t('header_home')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigateWithLoading('/cart')}
-                  className={cn(
-                    'relative h-10 px-3 flex items-center gap-2 rounded-lg transition-all duration-200 outline-none focus:outline-none focus:ring-0 group',
-                    isCartActive
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  )}
-                  aria-label={t('header_cart_aria')}
-                >
-                  <div className="relative">
-                    <img
-                      src={cartIcon}
-                      alt=""
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 object-contain transition-transform group-hover:scale-110"
-                      decoding="async"
-                    />
-
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-
-                <div ref={langWrapperRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsLangOpen((prev) => !prev)}
-                    className="h-10 px-2 rounded-lg bg-white hover:bg-blue-50 transition-colors flex items-center gap-2 outline-none focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    aria-label={t('lang_label')}
-                  >
-                    <img
-                      src={currentLang.flag}
-                      alt={currentLang.label}
-                      className="w-6 h-4 object-cover rounded-sm"
-                    />
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {isLangOpen && (
-                    <div className="absolute right-0 top-[calc(100%+6px)] w-44 rounded-lg bg-white shadow-lg z-50 overflow-hidden">
-                      {langOptions.map((item) => (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => {
-                            setIsLangOpen(false);
-                            if (item.value === lang) return;
-                            startRouteTransition(() => setLang(item.value), 450);
-                          }}
-                          className={`w-full px-3 py-2.5 text-left flex items-center gap-2 hover:bg-blue-50 transition-colors ${lang === item.value ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                            }`}
-                        >
-                          <img
-                            src={item.flag}
-                            alt={item.label}
-                            className="w-6 h-4 object-cover rounded-sm"
-                          />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-
-                {isAuthenticated ? (
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setIsUserMenuOpen(true)}
-                    onMouseLeave={() => setIsUserMenuOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => navigateWithLoading('/account')}
-                      className={cn(
-                        'h-10 px-3 flex items-center gap-2 rounded-lg transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300',
-                        isAccountActive
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                      )}
-                    >
-                      {userBadge.avatarUrl ? (
-                        <img
-                          src={userBadge.avatarUrl}
-                          alt={userBadge.label}
-                          className="w-7 h-7 rounded-full object-cover border border-gray-200"
-                        />
-                      ) : (
-                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center border border-blue-200">
-                          {userBadge.initial}
-                        </span>
-                      )}
-                      <span className="text-sm font-medium hidden xl:block max-w-[140px] truncate">
-                        {userBadge.label}
-                      </span>
-                    </button>
-                    {isUserMenuOpen && (
-                      <div className="absolute right-0 top-full pt-2 z-50">
-                        <div className="w-52 rounded-lg bg-white border border-gray-200 shadow-lg overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => navigateWithLoading('/account')}
-                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
-                          >
-                            {t('header_my_account')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => navigateWithLoading('/orders')}
-                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
-                          >
-                            {t('header_orders')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="w-full px-4 py-2.5 text-left text-sm text-danger hover:bg-red-50"
-                          >
-                            {t('header_logout')}
-                          </button>
+                {!isWaitingDebounce && debouncedTrim.length > 0 && headerSuggestQuery.isLoading && (
+                  <div className="space-y-2 px-3 py-3">
+                    {Array.from({ length: HEADER_SEARCH_SUGGEST_LIMIT }).map((_, i) => (
+                      <div key={i} className="flex animate-pulse gap-3 rounded-md border border-border p-2">
+                        <div className="h-12 w-12 shrink-0 rounded bg-border" />
+                        <div className="flex flex-1 flex-col justify-center gap-2">
+                          <div className="h-3 w-[80%] rounded bg-border" />
+                          <div className="h-3 w-1/3 rounded bg-border" />
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ) : (
-                  <button
-                    onClick={() => navigateWithLoading('/login')}
-                    className="h-10 px-3 flex items-center gap-2 rounded-lg text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors outline-none focus:outline-none focus:ring-0 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-px before:h-6 before:bg-gray-300"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <span className="text-sm font-medium hidden xl:block">{t('header_account')}</span>
-                  </button>)}
+                )}
+
+                {!isWaitingDebounce && debouncedTrim.length > 0 && !headerSuggestQuery.isLoading && headerSuggestQuery.isError && (
+                  <p className="px-3 py-6 text-center text-caption text-text-secondary">{t('header_search_suggestions_error')}</p>
+                )}
+
+                {!isWaitingDebounce && debouncedTrim.length > 0 && !headerSuggestQuery.isLoading && !headerSuggestQuery.isError &&
+                  (headerSuggestQuery.data?.products?.length ?? 0) === 0 && (
+                    <p className="px-3 py-6 text-center text-caption text-text-secondary">{t('header_search_suggestions_empty')}</p>
+                  )}
+
+                {!isWaitingDebounce && debouncedTrim.length > 0 && !headerSuggestQuery.isLoading && !headerSuggestQuery.isError &&
+                  (headerSuggestQuery.data?.products?.length ?? 0) > 0 &&
+                  headerSuggestQuery.data!.products.slice(0, HEADER_SEARCH_SUGGEST_LIMIT).map((p) => {
+                    const card = mapProductFullToCard(p);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => pickSuggestedProduct(card.name)}
+                        className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[#F5F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger"
+                      >
+                        <img src={card.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" loading="lazy" />
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-sm text-gray-800">{card.name}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-danger">
+                            {card.priceIsFrom && <span className="font-normal text-text-secondary">{t('product_price_from_prefix')}</span>}
+                            {formatSuggestPrice(card.price)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="flex min-w-0 items-start gap-3">
-              <svg
-                className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-                aria-hidden
+        {/* ── Action icons ── */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+
+          {/* Bell */}
+          <button
+            type="button"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors outline-none focus:outline-none"
+            aria-label="Thông báo"
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+
+          {/* Cart */}
+          <button
+            type="button"
+            onClick={() => navigateWithLoading('/cart')}
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors outline-none focus:outline-none"
+            aria-label={t('header_cart_aria')}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+            </svg>
+            {cartCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white leading-none">
+                {cartCount > 99 ? '99+' : cartCount}
+              </span>
+            )}
+          </button>
+
+          {/* User / Login */}
+          {isAuthenticated ? (
+            <div
+              className="relative"
+              onMouseEnter={() => setIsUserMenuOpen(true)}
+              onMouseLeave={() => setIsUserMenuOpen(false)}
+            >
+              <button
+                type="button"
+                onClick={() => navigateWithLoading('/account')}
+                className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-gray-600 hover:bg-gray-100 transition-colors outline-none focus:outline-none"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-              </svg>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
-                <span className="shrink-0 text-sm text-gray-600">{t('header_delivery_to')}</span>
-                {deliveryAddressLine ? (
-                  <button
-                    type="button"
-                    onClick={() => navigateWithLoading('/account/address')}
-                    title={deliveryAddressLine}
-                    className="min-w-0 max-w-full truncate text-left text-sm font-bold text-gray-900 underline decoration-gray-900/70 underline-offset-2 outline-none transition-colors hover:text-blue-600 hover:decoration-blue-600/70 focus:outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:ring-offset-0"
-                  >
-                    {deliveryAddressLine}
-                  </button>
+                {userBadge.avatarUrl ? (
+                  <img src={userBadge.avatarUrl} alt={userBadge.label} className="h-6 w-6 rounded-full object-cover" />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigateWithLoading(isAuthenticated ? '/account/address/new' : '/login')
-                    }
-                    className="w-fit text-left text-sm font-medium text-gray-900 underline decoration-gray-400/50 underline-offset-2 outline-none transition-colors hover:text-blue-600 focus:outline-none focus:ring-0"
-                  >
-                    {t('header_delivery_prompt')}
-                  </button>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-danger/10 text-[10px] font-bold text-danger">
+                    {userBadge.initial}
+                  </span>
                 )}
-              </div>
+                <span className="hidden text-sm font-medium xl:block max-w-[100px] truncate">{userBadge.label}</span>
+              </button>
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full pt-1 z-50">
+                  <div className="w-48 rounded-xl bg-white border border-border shadow-lg overflow-hidden">
+                    <button type="button" onClick={() => navigateWithLoading('/account')} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50">{t('header_my_account')}</button>
+                    <button type="button" onClick={() => navigateWithLoading('/orders')} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50">{t('header_orders')}</button>
+                    <button type="button" onClick={handleLogout} className="w-full px-4 py-2.5 text-left text-sm text-danger hover:bg-red-50">{t('header_logout')}</button>
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigateWithLoading('/login')}
+              className="flex h-9 items-center gap-1.5 rounded-full px-2.5 text-gray-600 hover:bg-gray-100 transition-colors outline-none focus:outline-none"
+            >
+              <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="hidden text-sm font-medium xl:block">{t('header_account')}</span>
+            </button>
+          )}
+
+          {/* Language picker */}
+          <div ref={langWrapperRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsLangOpen((prev) => !prev)}
+              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition-colors outline-none focus:outline-none"
+              aria-label={t('lang_label')}
+            >
+              <MoreHorizontal className="h-5 w-5 text-gray-500" />
+            </button>
+            {isLangOpen && (
+              <div className="absolute right-0 top-[calc(100%+6px)] w-44 rounded-xl bg-white shadow-lg border border-border z-50 overflow-hidden">
+                {langOptions.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => {
+                      setIsLangOpen(false);
+                      if (item.value === lang) return;
+                      startRouteTransition(() => setLang(item.value), 450);
+                    }}
+                    className={cn(
+                      'w-full px-3 py-2.5 text-left flex items-center gap-2 hover:bg-gray-50 transition-colors text-sm',
+                      lang === item.value ? 'text-danger font-medium' : 'text-gray-700'
+                    )}
+                  >
+                    <img src={item.flag} alt={item.label} className="w-5 h-3.5 object-cover rounded-sm" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div >
+      </div>
+
+      {/* ══ ROW 2: Navigation bar ══ */}
+      <div className="border-t border-border/50">
+        <div className="mx-auto flex w-full max-w-container items-center px-4 tablet:px-6">
+          <nav className="flex flex-1 items-center gap-0 overflow-x-auto scrollbar-none">
+            {NAV_ITEMS.map((item) => {
+              const active = isNavActive(item);
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => navigateWithLoading(item.path)}
+                  className={cn(
+                    'relative flex-shrink-0 whitespace-nowrap px-3 py-2.5 text-[13px] font-medium transition-colors outline-none focus:outline-none',
+                    active
+                      ? 'text-danger after:absolute after:bottom-0 after:left-3 after:right-3 after:h-[2px] after:rounded-full after:bg-danger after:content-[""]'
+                      : 'text-gray-600 hover:text-gray-900'
+                  )}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Xem tất cả danh mục */}
+          <button
+            type="button"
+            onClick={() => navigateWithLoading('/products')}
+            className="ml-auto flex flex-shrink-0 items-center gap-1 whitespace-nowrap py-2.5 pl-3 text-[13px] font-medium text-danger outline-none focus:outline-none hover:text-danger/80 transition-colors"
+          >
+            Xem tất cả danh mục
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Loading bar */}
       {isTopLoadingBarVisible && (
         <div className="profile-top-loading" aria-hidden="true">
           <div className="profile-top-loading__bar" />
         </div>
       )}
 
-      {
-        isSearchOpen && (
-          <div
-            className="fixed left-0 right-0 bottom-0 bg-black/40 z-30"
-            style={{ top: overlayTop }}
-            onClick={() => setIsSearchOpen(false)}
-          />
-        )
-      }
-    </header >
+      {/* Search overlay */}
+      {isSearchOpen && (
+        <div
+          className="fixed left-0 right-0 bottom-0 bg-black/40 z-30"
+          style={{ top: overlayTop }}
+          onClick={() => setIsSearchOpen(false)}
+        />
+      )}
+    </header>
   );
 };
 

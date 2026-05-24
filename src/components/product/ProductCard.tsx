@@ -47,6 +47,14 @@ export interface ProductCardProps {
   highlightKeyword?: string;
   /** PDP / danh sách — điều hướng tới chi tiết */
   to?: string;
+  /** Khi true, hiển thị “Từ” trước giá (SP đa biến thể). */
+  priceIsFrom?: boolean;
+  /** Snapshot BE — có SKU đang Price Change (listing đa biến thể). */
+  showPcSaleBadge?: boolean;
+  /** Có bậc giá theo SL (`volume_price_tiers`). */
+  volumeTierHint?: boolean;
+  /** Có chương trình PWP trên response. */
+  pwpHint?: boolean;
   /** Gắn thêm class vào thẻ article (ví dụ carousel: min-w-0) */
   className?: string;
 }
@@ -66,6 +74,10 @@ const ProductCard = ({
   highlightKeyword,
   to,
   className,
+  priceIsFrom = false,
+  showPcSaleBadge = false,
+  volumeTierHint = false,
+  pwpHint = false,
 }: ProductCardProps) => {
   const { t } = useI18n();
   const [imgSrc, setImgSrc] = useState(image);
@@ -142,10 +154,35 @@ const ProductCard = ({
         </span>
       </div>
 
-      <div className="font-semibold text-danger">{formatPrice(Math.round(price))}</div>
+      <div className="font-semibold text-danger">
+        {priceIsFrom ? (
+          <span className="font-normal text-caption text-text-secondary">{t('product_price_from_prefix')}</span>
+        ) : null}
+        {formatPrice(Math.round(price))}
+      </div>
       {typeof originalPrice === 'number' && (
-        <div className="text-caption text-text-secondary line-through">
+        <div className="text-caption font-semibold text-[#a1a1aa] line-through decoration-[#a1a1aa] decoration-1">
           {formatPrice(Math.round(originalPrice))}
+        </div>
+      )}
+
+      {(showPcSaleBadge || volumeTierHint || pwpHint) && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {showPcSaleBadge ? (
+            <span className="rounded border border-danger/35 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-danger">
+              {t('product_badge_sale')}
+            </span>
+          ) : null}
+          {volumeTierHint ? (
+            <span className="rounded border border-primary/25 bg-primary/8 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-primary">
+              {t('product_hint_volume')}
+            </span>
+          ) : null}
+          {pwpHint ? (
+            <span className="rounded border border-warning/35 bg-warning/12 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-warning">
+              {t('product_hint_pwp')}
+            </span>
+          ) : null}
         </div>
       )}
 

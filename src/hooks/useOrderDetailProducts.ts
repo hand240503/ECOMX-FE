@@ -4,6 +4,32 @@ import type { CreatedOrderDetail, OrderDto } from '../api/types/order.types';
 import { productService } from '../api/services/productService';
 import type { ProductFullResponse } from '../api/types/product.types';
 import { getProductImageUrl } from '../lib/productImage';
+import { parseOrderDescriptionJson } from '../lib/orderDescriptionJson';
+
+function readVariantOptionsFromLine(
+  line: CreatedOrderDetail & { variant_options?: Record<string, string> | null }
+): Record<string, string> | null {
+  const m = line.variantOptions ?? line.variant_options;
+  if (m && typeof m === 'object' && !Array.isArray(m)) return m;
+  return null;
+}
+
+/** Nhãn biến thể ưu tiên `variantOptions` từ BE, sau đó mô tả JSON, cuối cùng SKU code. */
+export function orderLineVariantCaption(line: CreatedOrderDetail): string {
+  const opts = readVariantOptionsFromLine(
+    line as CreatedOrderDetail & { variant_options?: Record<string, string> }
+  );
+  if (opts && Object.keys(opts).length > 0) {
+    return Object.entries(opts)
+      .map(([k, v]) => `${k}: ${String(v).trim()}`)
+      .join(' · ');
+  }
+  const rawSku = line.variantSkuCode ?? (line as { variant_sku_code?: string }).variant_sku_code;
+  if (typeof rawSku === 'string' && rawSku.trim() !== '') return rawSku.trim();
+  const unit = parseOrderDescriptionJson(line.description ?? null)?.unit?.trim();
+  if (unit) return unit;
+  return '—';
+}
 
 /** Giữ thứ tự xuất hiện đầu tiên trong đơn (trùng `productId` chỉ gửi một lần). */
 export function uniqueProductIdsFromOrderDetails(lines: CreatedOrderDetail[]): number[] {

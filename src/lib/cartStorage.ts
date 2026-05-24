@@ -1,6 +1,6 @@
 /**
  * Giỏ hàng guest / client — lưu `localStorage` (theo thiết bị & trình duyệt).
- * Chỉ lưu productId, unitId, quantity, addedAt. Giá/ảnh/tên sản phẩm lấy từ API (by-ids) khi xem /cart, checkout, v.v.
+ * Chỉ lưu productId, unitId, productVariantId (khi có), quantity, addedAt. Giá/ảnh/tên sản phẩm lấy từ API (by-ids) khi xem /cart, checkout, v.v.
  * Đồng bộ đa tab qua sự kiện `storage` (xử lý ở CartProvider).
  * Mỗi dòng có `addedAt` (ISO-8601): thời điểm **lần đầu** mặt hàng (product+unit) được thêm vào giỏ; cộng số lượng sau đó **không** đổi `addedAt`.
  */
@@ -14,19 +14,30 @@ const LEGACY_SCHEMA_VERSION = 1 as const;
 export type CartLine = {
   productId: number;
   unitId: number;
+  /** Bắt buộc khi đặt hàng đa biến thể — id SKU. */
+  productVariantId?: number;
   quantity: number;
   /** Lần đầu thêm dòng này vào giỏ — chuỗi ISO-8601 (UTC). */
   addedAt: string;
 };
 
-export function cartLineKey(line: { productId: number; unitId: number }): string {
+export function cartLineKey(line: { productId: number; unitId: number; productVariantId?: number }): string {
+  const v = line.productVariantId;
+  if (v != null && Number.isFinite(v) && v > 0) {
+    return `${line.productId}-${line.unitId}-v${v}`;
+  }
   return `${line.productId}-${line.unitId}`;
 }
 
-export function parseCartLineKey(key: string): { productId: number; unitId: number } | null {
-  const m = /^(\d+)-(\d+)$/.exec(key);
+export function parseCartLineKey(
+  key: string
+): { productId: number; unitId: number; productVariantId?: number } | null {
+  const m = /^(\d+)-(\d+)(?:-v(\d+))?$/.exec(key);
   if (!m) return null;
-  return { productId: Number(m[1]), unitId: Number(m[2]) };
+  const productId = Number(m[1]);
+  const unitId = Number(m[2]);
+  const vid = m[3] != null ? Number(m[3]) : undefined;
+  return vid != null && vid > 0 ? { productId, unitId, productVariantId: vid } : { productId, unitId };
 }
 
 type StoredCartV2 = {
@@ -52,7 +63,19 @@ function normalizeLineV2(entry: unknown): CartLine | null {
   const addedAt =
     typeof e.addedAt === 'string' && e.addedAt.trim() !== '' ? e.addedAt : new Date().toISOString();
 
-  return { productId, unitId, quantity, addedAt };
+  const vidRaw = e.productVariantId ?? e.product_variant_id;
+  const productVariantId =
+    vidRaw != null && Number.isFinite(Number(vidRaw)) && Number(vidRaw) > 0
+      ? Math.trunc(Number(vidRaw))
+      : undefined;
+
+  return {
+    productId,
+    unitId,
+    ...(productVariantId != null ? { productVariantId } : {}),
+    quantity,
+    addedAt,
+  };
 }
 
 /** Đọc bản cũ (schema 1) — giữ bất kỳ dòng hợp lệ nào về `productId`/`unitId`/`quantity`/`addedAt`. */
@@ -117,6 +140,7 @@ export function totalQuantityInCart(lines: CartLine[]): number {
 export type CartLineInput = {
   productId: number;
   unitId: number;
+  productVariantId?: number;
   quantity: number;
   productName?: string;
   thumbnailUrl?: string | null;
@@ -126,6 +150,15 @@ export type CartLineInput = {
   addedAt?: string;
 };
 
+function sameVariant(
+  a: number | undefined,
+  b: number | undefined
+): boolean {
+  const x = a != null && a > 0 ? a : undefined;
+  const y = b != null && b > 0 ? b : undefined;
+  return x === y;
+}
+
 function coalesceAddedAt(explicit: string | undefined, fallback: string): string {
   if (explicit == null || explicit.trim() === '') return fallback;
   const t = Date.parse(explicit);
@@ -133,11 +166,16 @@ function coalesceAddedAt(explicit: string | undefined, fallback: string): string
   return new Date(t).toISOString();
 }
 
-/** Cùng `productId` + `unitId` → cộng dồn số lượng (giới hạn 999 / dòng). `addedAt` giữ từ lần thêm đầu tiên. */
+/** Cùng `productId` + `unitId` (+ `productVariantId` nếu có) → cộng dồn số lượng (giới hạn 999 / dòng). `addedAt` giữ từ lần thêm đầu tiên. */
 export function mergeCartLine(lines: CartLine[], incoming: CartLineInput): CartLine[] {
   const addQty = clampQty(incoming.quantity);
   const now = new Date().toISOString();
-  const idx = lines.findIndex((l) => l.productId === incoming.productId && l.unitId === incoming.unitId);
+  const idx = lines.findIndex(
+    (l) =>
+      l.productId === incoming.productId &&
+      l.unitId === incoming.unitId &&
+      sameVariant(l.productVariantId, incoming.productVariantId)
+  );
 
   if (idx >= 0) {
     const next = [...lines];
@@ -152,6 +190,9 @@ export function mergeCartLine(lines: CartLine[], incoming: CartLineInput): CartL
     {
       productId: incoming.productId,
       unitId: incoming.unitId,
+      ...(incoming.productVariantId != null && incoming.productVariantId > 0
+        ? { productVariantId: incoming.productVariantId }
+        : {}),
       quantity: addQty,
       addedAt: coalesceAddedAt(incoming.addedAt, now)
     }
@@ -162,16 +203,33 @@ export function setLineQuantity(
   lines: CartLine[],
   productId: number,
   unitId: number,
-  quantity: number
+  quantity: number,
+  productVariantId?: number
 ): CartLine[] {
   const q = clampQty(quantity);
   return lines
-    .map((l) => (l.productId === productId && l.unitId === unitId ? { ...l, quantity: q } : l))
+    .map((l) =>
+      l.productId === productId && l.unitId === unitId && sameVariant(l.productVariantId, productVariantId)
+        ? { ...l, quantity: q }
+        : l
+    )
     .filter((l) => l.quantity > 0);
 }
 
-export function removeCartLine(lines: CartLine[], productId: number, unitId: number): CartLine[] {
-  return lines.filter((l) => !(l.productId === productId && l.unitId === unitId));
+export function removeCartLine(
+  lines: CartLine[],
+  productId: number,
+  unitId: number,
+  productVariantId?: number
+): CartLine[] {
+  return lines.filter(
+    (l) =>
+      !(
+        l.productId === productId &&
+        l.unitId === unitId &&
+        sameVariant(l.productVariantId, productVariantId)
+      )
+  );
 }
 
 /** Tổng tiền không tính được từ storage — dùng giá từ API. Luôn 0. */

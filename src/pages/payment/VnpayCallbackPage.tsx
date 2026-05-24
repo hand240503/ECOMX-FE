@@ -80,7 +80,7 @@ export default function VnpayCallbackPage() {
       for (const key of lineKeys) {
         const parsed = parseCartLineKey(key);
         if (parsed) {
-          removeItem(parsed.productId, parsed.unitId);
+          removeItem(parsed.productId, parsed.unitId, parsed.productVariantId);
         }
       }
     },

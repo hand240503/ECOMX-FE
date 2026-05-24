@@ -52,9 +52,13 @@ export function ProductGallery({
   const hasUrls = imageUrls.length > 0;
   const mainSrc = hasUrls ? imageUrls[activeIndex] ?? imageUrls[0] : '';
 
+  // So sánh nội dung URL (không phải reference) để tránh vòng lặp vô tận
+  const imageUrlsKey = imageUrls.join('\0');
   useEffect(() => {
     setBadSrc(new Set());
-  }, [imageUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageUrlsKey]);
+
 
   const markBad = (url: string) => {
     setBadSrc((prev) => new Set(prev).add(url));
@@ -77,6 +81,16 @@ export function ProductGallery({
     el.addEventListener('scroll', onMobileScroll, { passive: true });
     return () => el.removeEventListener('scroll', onMobileScroll);
   }, [onMobileScroll]);
+
+  // Đồng bộ vị trí scroll mobile khi activeIndex thay đổi (auto-advance hoặc từ parent)
+  useEffect(() => {
+    const el = mobileScrollRef.current;
+    if (!el) return;
+    const target = activeIndex * el.clientWidth;
+    if (Math.abs(el.scrollLeft - target) > 4) {
+      el.scrollTo({ left: target, behavior: 'smooth' });
+    }
+  }, [activeIndex]);
 
   const wishlistClass =
     'absolute right-3 top-3 z-dropdown rounded-full border border-border/60 bg-surface/95 p-2.5 shadow-card transition-all duration-200 hover:scale-105 hover:border-primary/30 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
@@ -147,9 +161,7 @@ export function ProductGallery({
               <button
                 key={`${src}-${i}`}
                 type="button"
-                onMouseEnter={() => onActiveIndexChange(i)}
-                onFocus={() => onActiveIndexChange(i)}
-                onClick={() => onActiveIndexChange(i)}
+                onClick={() => { onActiveIndexChange(i); }}
                 className={cn(
                   'h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-background transition-all duration-200',
                   i === activeIndex
