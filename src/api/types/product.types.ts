@@ -33,6 +33,16 @@ export interface ActivePriceChangeSnapshot {
   startAt: string | null;
   endAt: string | null;
   enabled: boolean;
+  /** Giới hạn tổng lượt mua (null = không giới hạn). */
+  quantityLimit?: number | null;
+  /** Số lượng đã bán trong campaign. */
+  soldQuantity?: number | null;
+  /** Số lượng còn lại (null = không giới hạn). */
+  remainingQuantity?: number | null;
+  /** Giới hạn mua / khách hàng (null = không giới hạn). */
+  maxPerCustomer?: number | null;
+  /** Phương thức thanh toán bắt buộc — null = tất cả phương thức. */
+  requiredPaymentMethodCode?: string | null;
 }
 
 /** Bậc giá theo SL (mix-and-match) — snapshot trên `ProductFullResponse`. */

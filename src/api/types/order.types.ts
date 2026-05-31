@@ -261,11 +261,17 @@ export type CreatedOrder = {
   /** @see docs/API_add_order.md — trả hàng/hoàn tiền */
   returnRefundStatus?: number | null;
   returnRefundNote?: string | null;
+  /** Lý do hủy đơn. */
+  cancelNote?: string | null;
+  /** "CUSTOMER" hoặc "ADMIN" — chỉ có khi status=5 */
+  cancelledBy?: string | null;
   createdDate?: string;
   modifiedDate?: string;
   /** Cập nhật sau IPN VNPAY (nếu backend trả). */
   paid?: boolean;
   paidAt?: string | null;
+  /** Thời điểm đơn hoàn thành (status=4). Anchor tính cửa sổ 7 ngày trả hàng. */
+  completedAt?: string | null;
   /** Gắn với phiên checkout (BE có thể trả khi tra cứu sau thanh toán thất bại). */
   checkoutSessionId?: number | null;
   /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §4 */
@@ -279,4 +285,40 @@ export type CreatedOrder = {
 
 /** Đơn từ `GET /orders` / `GET /orders/{id}` — cùng cấu trúc phản hồi tạo đơn. */
 export type OrderDto = CreatedOrder;
+
+// ─── Order Timeline ───────────────────────────────────────────────────────────
+
+/** Một bước trong tiến trình đơn hàng. Ánh xạ từ `OrderTimelineResponse.TimelineStep` (BE). */
+export type OrderTimelineStep = {
+  /** Số thứ tự bước (1-based). */
+  stepIndex: number;
+  /** Mã trạng thái tương ứng (1–5). `null` cho bước virtual "Đánh giá". */
+  statusCode: number | null;
+  /** Nhãn bước hiển thị (VD: "Đơn hàng đã đặt", "Đã xác nhận", …). */
+  statusLabel: string;
+  /** Bước này đã hoàn thành (đã được đi qua) chưa? */
+  completed: boolean;
+  /** Đây có phải trạng thái hiện tại không? */
+  current: boolean;
+  /** Thời điểm đạt trạng thái (ISO string). `null` nếu chưa đạt. */
+  timestamp: string | null;
+  /** ID người cập nhật sang trạng thái này. */
+  updatedByUserId?: number | null;
+  /** Username của người cập nhật. */
+  updatedByUsername?: string | null;
+  /** Họ tên đầy đủ của người cập nhật. */
+  updatedByFullName?: string | null;
+  /** Ghi chú đi kèm (nếu có). */
+  note?: string | null;
+};
+
+/** Response từ `GET /orders/{id}/timeline`. Ánh xạ từ `OrderTimelineResponse` (BE). */
+export type OrderTimelineDto = {
+  orderCode: string;
+  currentStatus: number;
+  currentStatusLabel: string;
+  /** Đơn hàng đã kết thúc (hoàn thành hoặc hủy) chưa? */
+  finished: boolean;
+  steps: OrderTimelineStep[];
+};
 

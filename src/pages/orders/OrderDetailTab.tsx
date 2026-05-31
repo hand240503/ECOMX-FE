@@ -16,6 +16,7 @@ import { isCodPaymentMethod } from '../../lib/paymentMethodUtils';
 import { parseOrderDescriptionJson } from '../../lib/orderDescriptionJson';
 import { notify } from '../../utils/notify';
 import type { Lang } from '../../utils/i18n';
+import { OrderTimeline } from './OrderTimeline';
 
 const localeByLang: Record<Lang, typeof vi> = {
   vi,
@@ -143,6 +144,12 @@ export default function OrderDetailTab() {
     enabled: validId,
   });
 
+  const timelineQuery = useQuery({
+    queryKey: ['order-timeline', id],
+    queryFn: () => orderService.getOrderTimeline(id),
+    enabled: validId,
+  });
+
   const lines = orderQuery.data?.orderDetails;
   const productsState = useOrderDetailProducts(validId ? id : 0, lines);
 
@@ -176,6 +183,8 @@ export default function OrderDetailTab() {
   const cancelOrNoteReason = useMemo(() => {
     const o = orderQuery.data;
     if (!o) return null;
+    // Ưu tiên lý do hủy đơn (cancelNote) nếu đơn bị hủy
+    if (o.status === 5 && o.cancelNote?.trim()) return o.cancelNote.trim();
     const fromApi = o.returnRefundNote?.trim();
     const fromJson = headerDesc?.note?.trim() || headerDesc?.message?.trim();
     return fromApi || fromJson || null;
@@ -312,12 +321,30 @@ export default function OrderDetailTab() {
           <p className="mb-0 mt-2 text-caption text-text-secondary">
             {t('orders_detail_hero_sub').replace('{time}', heroSubTime)}
           </p>
-          {order.returnRefundStatus != null ? (
+          {/* Trạng thái hủy — ai hủy */}
+          {status === 5 ? (
+            <p className={cn(
+              'mb-0 mt-2 text-caption font-semibold uppercase tracking-wide',
+              order.cancelledBy === 'ADMIN' ? 'text-danger' : 'text-text-secondary'
+            )}>
+              {order.cancelledBy === 'ADMIN'
+                ? 'Đã bị hủy bởi hệ thống'
+                : 'Đã hủy bởi bạn'}
+            </p>
+          ) : null}
+          {order.returnRefundStatus != null && status !== 5 ? (
             <p className="mb-0 mt-2 text-caption font-medium text-warning">
               {t('orders_return_badge')}: {t(returnRefundStatusLabelKey(order.returnRefundStatus))}
             </p>
           ) : null}
         </div>
+
+        <OrderTimeline
+          steps={timelineQuery.data?.steps ?? []}
+          currentStatus={order.status}
+          loading={timelineQuery.isLoading}
+          className="border-b border-border"
+        />
 
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 tablet:px-6">
           <span className="min-w-0 flex-1 text-body font-semibold text-text-primary">{shopName}</span>
@@ -480,14 +507,18 @@ export default function OrderDetailTab() {
           >
             {paymentLabel}
           </SummaryRow>
-          {status === 4 || status === 5 ? (
+          {status === 4 && order.returnRefundStatus == null && (() => {
+            const ref = order.completedAt ?? order.modifiedDate;
+            if (!ref) return false;
+            return Date.now() - new Date(ref).getTime() <= 7 * 24 * 60 * 60 * 1000;
+          })() ? (
             <SummaryRow label={t('orders_detail_return_title')}>
               <div className="flex flex-col items-end gap-2 text-right">
                 <p className="m-0 max-w-md text-caption font-normal text-text-secondary">
-                  {status === 4 ? t('orders_detail_return_hint_completed') : t('orders_detail_return_hint')}
+                  {t('orders_detail_return_hint_completed')}
                 </p>
                 <Link
-                  to="/account/returns"
+                  to={`/account/returns/${order.id}`}
                   className={cn(
                     'inline-flex items-center justify-center rounded-sm border border-primary bg-primary/10',
                     'px-3 py-1.5 text-caption font-semibold text-primary',
@@ -524,10 +555,12 @@ export default function OrderDetailTab() {
           </SummaryRow>
         </div>
 
-        {cancelOrNoteReason && (status === 5 || order.returnRefundStatus != null) ? (
+        {cancelOrNoteReason && (status === 5 || (status !== 5 && order.returnRefundStatus != null)) ? (
           <div className="border-t border-border bg-background/40 px-4 py-4 tablet:px-6">
             <p className="m-0 text-body text-text-primary">
-              <span className="font-semibold text-text-secondary">{t('orders_detail_reason_label')} </span>
+              <span className="font-semibold text-text-secondary">
+                {status === 5 ? t('orders_cancel_note_label') : t('orders_detail_reason_label')}{' '}
+              </span>
               {cancelOrNoteReason}
             </p>
           </div>

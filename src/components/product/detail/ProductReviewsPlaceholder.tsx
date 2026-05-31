@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import axios from 'axios';
 import {
   CheckCircle2,
@@ -13,6 +13,8 @@ import { useI18n } from '../../../i18n/I18nProvider';
 import { cn } from '../../../lib/cn';
 import { useAuth } from '../../../app/auth/AuthProvider';
 import { useProductComments, useCreateComment, useDeleteComment } from '../../../hooks/useProductComments';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import { orderService } from '../../../api/services';
 
 // ─── Fractional stars ────────────────────────────────────────────────────────
 function FractionalStars({ value, size = 20 }: { value: number; size?: number }) {
@@ -106,6 +108,41 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
 
   const createMutation = useCreateComment(pid ?? 0);
   const deleteMutation = useDeleteComment(pid ?? 0);
+
+  const { data: userOrders = [] } = useQuery({
+    queryKey: ['user-orders-check-completed'],
+    queryFn: () => orderService.listOrders(4), // 4 is COMPLETED
+    enabled: isAuthenticated && pid !== null,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const ordersNeedingDetails = useMemo(() => {
+    return userOrders.filter((o) => !o.orderDetails || o.orderDetails.length === 0);
+  }, [userOrders]);
+
+  const enrichQueries = useQueries({
+    queries: ordersNeedingDetails.map((o) => ({
+      queryKey: ['order-detail-check-purchase', o.id],
+      queryFn: () => orderService.getOrderById(o.id),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  const hasPurchased = useMemo(() => {
+    if (!isAuthenticated || !pid) return false;
+
+    // Check if any order already has details and contains the product
+    const foundInPopulated = userOrders.some((o) =>
+      o.orderDetails?.some((line) => line.productId === pid)
+    );
+    if (foundInPopulated) return true;
+
+    // Check in the enriched queries
+    const foundInEnriched = enrichQueries.some((q) =>
+      q.data?.orderDetails?.some((line) => line.productId === pid)
+    );
+    return foundInEnriched;
+  }, [userOrders, enrichQueries, pid, isAuthenticated]);
 
   // ── Rating distribution (computed from ratings array) ─────────────────────
   const distribution = [5, 4, 3, 2, 1].map((star) => ({
@@ -219,23 +256,13 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
       )}
 
       {/* ── Comment form ── */}
-      {pid != null && (
+      {pid != null && isAuthenticated && hasPurchased && (
         <div className="mt-6 rounded-xl border border-border/70 bg-background/50 p-4">
           <p className="mb-3 flex items-center gap-2 text-body font-semibold text-text-primary">
             <MessageCircle size={18} aria-hidden />
             Viết bình luận
           </p>
-
-          {!isAuthenticated ? (
-            <p className="text-caption text-text-secondary">
-              Vui lòng{' '}
-              <a href="/login" className="font-medium text-primary hover:underline">
-                đăng nhập
-              </a>{' '}
-              để bình luận.
-            </p>
-          ) : (
-            <div className="space-y-3">
+          <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
@@ -280,9 +307,8 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
                 </button>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
       {/* ── Filter tabs ── */}
       {comments.length > 0 && (

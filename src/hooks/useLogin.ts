@@ -86,10 +86,21 @@ export const useLogin = () => {
 
     setLoading(true);
     try {
-      await authService.login({
+      const result = await authService.login({
         login: login.trim(),
         password
       });
+
+      // Chỉ cho phép tài khoản có role CUSTOMER đăng nhập vào trang mua hàng
+      const roles: string[] = result.user_info?.roles ?? [];
+      const isCustomer = roles.some(
+        (r) => r === 'ROLE_CUSTOMER' || r === 'CUSTOMER'
+      );
+      if (!isCustomer) {
+        await authService.logout().catch(() => {});
+        setApiError('Tài khoản này không có quyền truy cập trang mua hàng. Vui lòng dùng tài khoản khách hàng.');
+        return;
+      }
 
       navigateWithLoading(from, { replace: true, delayMs: 300 });
     } catch (error) {

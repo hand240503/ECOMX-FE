@@ -50,6 +50,14 @@ export function coerceActivePriceChangeSnapshot(raw: unknown): ActivePriceChange
   const startAt = typeof startAtRaw === 'string' ? startAtRaw : null;
   const endAt = typeof endAtRaw === 'string' ? endAtRaw : null;
 
+  const quantityLimit = numFromUnknown(readProp(o, ['quantityLimit', 'quantity_limit'])) ?? null;
+  const soldQuantity = numFromUnknown(readProp(o, ['soldQuantity', 'sold_quantity'])) ?? null;
+  const remainingQuantity = numFromUnknown(readProp(o, ['remainingQuantity', 'remaining_quantity'])) ?? null;
+  const maxPerCustomer = numFromUnknown(readProp(o, ['maxPerCustomer', 'max_per_customer'])) ?? null;
+  const pmcRaw = readProp(o, ['requiredPaymentMethodCode', 'required_payment_method_code']);
+  const requiredPaymentMethodCode =
+    typeof pmcRaw === 'string' && pmcRaw.trim() !== '' ? pmcRaw.trim().toUpperCase() : null;
+
   return {
     id,
     productVariantId: productVariantId != null && Number.isFinite(productVariantId) ? productVariantId : null,
@@ -58,6 +66,11 @@ export function coerceActivePriceChangeSnapshot(raw: unknown): ActivePriceChange
     startAt,
     endAt,
     enabled: o.enabled !== false,
+    quantityLimit,
+    soldQuantity,
+    remainingQuantity,
+    maxPerCustomer,
+    requiredPaymentMethodCode,
   };
 }
 

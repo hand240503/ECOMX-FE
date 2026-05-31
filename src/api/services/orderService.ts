@@ -11,6 +11,7 @@ import type {
   OrderDto,
   OrderLinePricingProgramsSnapshot,
   OrderShippingSnapshot,
+  OrderTimelineDto,
   PaymentMethodDto,
   VnpayPaymentUrlData,
   VnpayPendingDto,
@@ -294,13 +295,34 @@ export const orderService = {
   },
 
   /**
+   * `GET /orders/{id}/timeline` — tiến trình đơn hàng dạng stepper.
+   * Chỉ trả về đơn thuộc về user đang đăng nhập.
+   */
+  async getOrderTimeline(id: number): Promise<OrderTimelineDto> {
+    try {
+      const { data } = await axiosInstance.get<ApiResponse<OrderTimelineDto>>(
+        API_ENDPOINTS.ORDER.TIMELINE(id)
+      );
+      if (!data.success || data.data === undefined) {
+        throw new Error(data.message || 'Không tải được tiến trình đơn hàng');
+      }
+      return data.data;
+    } catch (error) {
+      throw new Error(parseApiErrorMessage(error, 'Không tải được tiến trình đơn hàng'));
+    }
+  },
+
+  /**
    * Hủy đơn (chỉ khi đơn ở trạng thái cho phép — thường `status === 1`).
    * `POST /orders/{id}/cancel`
    * @see docs/API_add_order.md
    */
-  async cancelOrder(id: number): Promise<OrderDto> {
+  async cancelOrder(id: number, reason: string): Promise<OrderDto> {
     try {
-      const { data } = await axiosInstance.post<ApiResponse<OrderDto>>(API_ENDPOINTS.ORDER.CANCEL(id), {});
+      const { data } = await axiosInstance.post<ApiResponse<OrderDto>>(
+        API_ENDPOINTS.ORDER.CANCEL(id),
+        { reason },
+      );
       if (!data.success || data.data === undefined) {
         throw new Error(data.message || 'Không hủy được đơn hàng');
       }
@@ -310,15 +332,25 @@ export const orderService = {
     }
   },
 
-  async submitReturnRequest(id: number, body?: { reason?: string }): Promise<void> {
+  async submitReturnRequest(
+    id: number,
+    body?: {
+      reason?: string;
+      refundMethod?: string;
+      bankAccountNumber?: string;
+      bankName?: string;
+      bankEmail?: string;
+    }
+  ): Promise<OrderDto> {
     try {
-      const { data } = await axiosInstance.post<ApiResponse<unknown>>(
+      const { data } = await axiosInstance.post<ApiResponse<OrderDto>>(
         API_ENDPOINTS.ORDER.RETURN_REQUEST(id),
         body ?? {}
       );
-      if (!data.success) {
+      if (!data.success || data.data === undefined) {
         throw new Error(data.message || 'Không gửi được yêu cầu trả hàng');
       }
+      return data.data;
     } catch (error) {
       throw new Error(parseApiErrorMessage(error, 'Không gửi được yêu cầu trả hàng'));
     }

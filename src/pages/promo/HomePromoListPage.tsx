@@ -285,6 +285,7 @@ export default function HomePromoListPage({ variant }: HomePromoListPageProps) {
                         return (
                           <ProductCard
                             key={p.id}
+                            id={p.id}
                             to={`/products/${p.id}`}
                             variant={view}
                             name={card.name}

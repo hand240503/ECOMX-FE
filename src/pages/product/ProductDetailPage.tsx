@@ -586,11 +586,25 @@ const ProductDetailPage = () => {
         unitId: selectedPrice.unitId,
         productVariantId: matchedVariant?.id
       });
+      // Gom companion keys cho các PWP offer đã được tick "Mua kèm"
+      const companionKeys: string[] = [];
+      for (const prog of visiblePwpPrograms) {
+        if (!checkedPwpOfferIds.has(prog.id)) continue;
+        const companionId = prog.role === 'anchor' ? prog.companionProductId : prog.anchorProductId;
+        const companionVariantId = prog.role === 'anchor' ? prog.companionVariantId : prog.anchorVariantId;
+        if (companionId == null) continue;
+        companionKeys.push(cartLineKey({
+          productId: companionId,
+          unitId: 0,
+          productVariantId: companionVariantId ?? undefined,
+        }));
+      }
+      const allKeys = [key, ...companionKeys];
       if (!isAuthenticated) {
-        saveCheckoutLineKeys([key]);
+        saveCheckoutLineKeys(allKeys);
         navigate('/login', { state: { from: '/checkout' } });
       } else {
-        navigate('/checkout', { state: { keys: [key] } });
+        navigate('/checkout', { state: { keys: allKeys } });
       }
     } catch {
       toast.error(t('pdp_cart_error'));

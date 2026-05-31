@@ -217,6 +217,7 @@ export function ProductRecommendations({
                         return (
                           <div key={p.id} className="flex-shrink-0" style={itemStyle}>
                             <ProductCard
+                              id={p.id}
                               to={`/products/${p.id}`}
                               name={card.name}
                               brand={card.brand}
@@ -257,6 +258,7 @@ export function ProductRecommendations({
                 return (
                   <div key={p.id}>
                     <ProductCard
+                      id={p.id}
                       to={`/products/${p.id}`}
                       name={card.name}
                       brand={card.brand}

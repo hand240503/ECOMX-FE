@@ -73,6 +73,11 @@ export default {
         'elevation-card': '0 2px 8px rgba(0,0,0,0.10)',
         'dropdown': '0 4px 16px rgba(0,0,0,0.12)',
         'header': '0 1px 4px rgba(0,0,0,0.08)',
+        'product-card': '0 2px 12px rgba(0,0,0,0.06)',
+        'product-card-hover': '0 16px 48px rgba(227,0,25,0.15), 0 4px 16px rgba(0,0,0,0.08)',
+        'product-cta': '0 4px 16px rgba(227,0,25,0.35)',
+        'product-cta-hover': '0 6px 24px rgba(227,0,25,0.50)',
+        'wishlist': '0 2px 8px rgba(0,0,0,0.12)',
       },
       zIndex: {
         header: '100',
@@ -96,9 +101,20 @@ export default {
           '0%': { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        'heart-beat': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '30%': { transform: 'scale(1.35)' },
+          '60%': { transform: 'scale(0.9)' },
+        },
+        'card-glow-in': {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         marquee: 'marquee 28s linear infinite',
+        'heart-beat': 'heart-beat 0.4s ease-out',
+        'card-glow-in': 'card-glow-in 0.25s ease-out',
       },
     },
   },

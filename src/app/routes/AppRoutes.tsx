@@ -35,6 +35,7 @@ import NotFoundPage from '../../pages/NotFoundPage';
 import OrderDetailTab from '../../pages/orders/OrderDetailTab';
 import OrdersTab from '../../pages/orders/OrdersTab';
 import OrdersPage from '../../pages/orders/OrdersPage';
+import ReturnRequestPage from '../../pages/orders/ReturnRequestPage';
 import { useI18n } from '../../i18n/I18nProvider';
 
 /** Đường dẫn cũ /account/orders/:id → /orders/:id */
@@ -146,7 +147,8 @@ const router = createBrowserRouter(
         />
         <Route path="orders" element={<Navigate to="/orders" replace />} />
         <Route path="orders/:orderId" element={<LegacyAccountOrderRedirect />} />
-        <Route path="returns" element={<ProfileTabPlaceholder messageKey="profile_placeholder_returns" />} />
+        <Route path="returns" element={<ReturnRequestPage />} />
+        <Route path="returns/:orderId" element={<ReturnRequestPage />} />
         <Route path="address" element={<AddressBookTab />} />
         <Route path="address/new" element={<AddUserAddressTab />} />
         <Route path="address/:addressId/edit" element={<EditUserAddressTab />} />

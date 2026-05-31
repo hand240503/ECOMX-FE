@@ -121,6 +121,7 @@ const ProductFeed = ({ title, maxItems }: ProductFeedProps) => {
           {items.map((product) => (
             <ProductCard
               key={product.id}
+              id={product.id}
               to={`/products/${product.id}`}
               name={product.name}
               brand={product.brand}

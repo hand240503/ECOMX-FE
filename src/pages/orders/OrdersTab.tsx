@@ -149,10 +149,8 @@ function lineDisplayTotal(line: CreatedOrderDetail): number {
 function orderFooterHint(order: OrderDto, headerDesc: ReturnType<typeof parseOrderDescriptionJson>, t: (k: string) => string): string | null {
   const noteParts = [headerDesc?.message?.trim(), headerDesc?.note?.trim()].filter(Boolean);
   const noteJoined = noteParts.length ? noteParts.join(' · ') : null;
-  if (order.status === 5) {
-    const base = t('orders_cancelled_by_you');
-    return noteJoined ? `${base} · ${noteJoined}` : base;
-  }
+  // Cancelled — footer hint chỉ là note từ description (lý do hủy render riêng bên dưới)
+  if (order.status === 5) return noteJoined;
   return noteJoined;
 }
 
@@ -206,11 +204,15 @@ function OrderCard({
   const footerHint = orderFooterHint(order, headerDesc, t);
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReasonError, setCancelReasonError] = useState('');
 
   const cancelMutation = useMutation({
-    mutationFn: () => orderService.cancelOrder(order.id),
+    mutationFn: (reason: string) => orderService.cancelOrder(order.id, reason),
     onSuccess: () => {
       setCancelDialogOpen(false);
+      setCancelReason('');
+      setCancelReasonError('');
       notify.success(t('orders_cancel_success'));
       void queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       void queryClient.invalidateQueries({ queryKey: ['order-detail', order.id] });
@@ -221,18 +223,32 @@ function OrderCard({
   });
 
   const onCancelOrderClick = useCallback(() => {
+    setCancelReason('');
+    setCancelReasonError('');
     setCancelDialogOpen(true);
   }, []);
 
   const onCancelDialogDismiss = useCallback(() => {
     if (!cancelMutation.isPending) {
       setCancelDialogOpen(false);
+      setCancelReason('');
+      setCancelReasonError('');
     }
   }, [cancelMutation.isPending]);
 
   const onCancelDialogConfirm = useCallback(() => {
-    cancelMutation.mutate();
-  }, [cancelMutation]);
+    const trimmed = cancelReason.trim();
+    if (!trimmed) {
+      setCancelReasonError(t('orders_cancel_reason_required'));
+      return;
+    }
+    if (trimmed.length > 500) {
+      setCancelReasonError(t('orders_cancel_reason_too_long'));
+      return;
+    }
+    setCancelReasonError('');
+    cancelMutation.mutate(trimmed);
+  }, [cancelReason, cancelMutation, t]);
 
   return (
     <article
@@ -362,33 +378,40 @@ function OrderCard({
 
         {footerHint ? <p className="mb-0 mt-1.5 text-caption text-text-secondary">{footerHint}</p> : null}
 
-        {order.returnRefundStatus != null ? (
+        {/* ── Lý do hủy đơn (status=5) ──────────────────────────────── */}
+        {order.status === 5 ? (
+          <div className="mt-1.5 rounded-sm border border-danger/25 bg-danger/[0.04] px-3 py-2">
+            <p className={cn(
+              'm-0 text-caption font-semibold uppercase tracking-wide',
+              order.cancelledBy === 'ADMIN' ? 'text-danger' : 'text-text-secondary'
+            )}>
+              {order.cancelledBy === 'ADMIN'
+                ? 'Đã bị hủy bởi hệ thống'
+                : 'Đã hủy bởi bạn'}
+            </p>
+            {order.cancelNote?.trim() ? (
+              <p className="mb-0 mt-0.5 text-caption text-text-secondary">
+                Lý do: {order.cancelNote.trim()}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {order.status !== 5 && order.returnRefundStatus != null ? (
           <p className="mb-0 mt-1.5 text-caption text-warning">
             {t('orders_return_badge')}: {t(returnRefundStatusLabelKey(order.returnRefundStatus))}
           </p>
         ) : null}
 
         <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5">
-          {order.status === 5 ? (
-            <Link to={`/orders/${order.id}`} className={secondaryActionClass}>
-              {t('orders_action_cancel_detail')}
-            </Link>
-          ) : (
-            <Link to={`/orders/${order.id}`} className={secondaryActionClass}>
-              {t('orders_action_order_detail')}
-            </Link>
-          )}
-
-          <Link to="/" className={secondaryActionClass}>
-            {t('orders_action_contact_seller')}
+          {/* ── Nút "Xem chi tiết" — luôn hiển thị ───────────────────── */}
+          <Link to={`/orders/${order.id}`} className={secondaryActionClass}>
+            {order.status === 5
+              ? t('orders_action_cancel_detail')
+              : t('orders_action_order_detail')}
           </Link>
 
-          {order.status === 4 || order.status === 5 ? (
-            <Link to="/account/returns" className={secondaryActionClass}>
-              {t('orders_detail_return_title')}
-            </Link>
-          ) : null}
-
+          {/* ── Status 1: Hủy đơn ────────────────────────────────────── */}
           {order.status === 1 ? (
             <button
               type="button"
@@ -396,23 +419,117 @@ function OrderCard({
               onClick={onCancelOrderClick}
               className={cn(secondaryActionClass, 'disabled:cursor-not-allowed disabled:opacity-50')}
             >
-              {cancelMutation.isPending ? t('orders_action_cancel_pending') : t('orders_action_cancel_order')}
+              {cancelMutation.isPending
+                ? t('orders_action_cancel_pending')
+                : t('orders_action_cancel_order')}
             </button>
+          ) : null}
+
+          {/* ── Status 4: Trả hàng (chỉ trong 7 ngày & chưa có yêu cầu) ─ */}
+          {order.status === 4 && order.returnRefundStatus == null && (() => {
+            const ref = order.completedAt ?? order.modifiedDate;
+            if (!ref) return false;
+            const completedMs = new Date(ref).getTime();
+            const withinWindow = Date.now() - completedMs <= 7 * 24 * 60 * 60 * 1000;
+            return withinWindow;
+          })() ? (
+            <Link to={`/account/returns/${order.id}`} className={secondaryActionClass}>
+              {t('orders_detail_return_title')}
+            </Link>
           ) : null}
         </div>
       </div>
 
-      <ConfirmDialog
-        open={cancelDialogOpen}
-        title={t('orders_action_cancel_order')}
-        message={t('orders_cancel_confirm')}
-        cancelLabel={t('common_close')}
-        confirmLabel={t('orders_action_cancel_order')}
-        confirmVariant="danger"
-        confirmLoading={cancelMutation.isPending}
-        onCancel={onCancelDialogDismiss}
-        onConfirm={onCancelDialogConfirm}
-      />
+      {/* ── Dialog hủy đơn có lý do ─────────────────────────────── */}
+      {cancelDialogOpen && typeof document !== 'undefined' ? (
+        <div
+          className="fixed inset-0 z-[400] flex items-center justify-center bg-background/80 p-4 backdrop-blur-[2px]"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="cancel-order-dialog-title"
+          onClick={cancelMutation.isPending ? undefined : onCancelDialogDismiss}
+        >
+          <div
+            className="w-full max-w-md rounded-md border border-border bg-surface p-5 shadow-lg tablet:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="cancel-order-dialog-title" className="m-0 text-heading text-text-primary">
+              {t('orders_action_cancel_order')}
+            </h2>
+
+            {/* Thông tin đơn hàng */}
+            <div className="mt-3 rounded-sm border border-border bg-background/60 px-3 py-2.5">
+              <p className="m-0 text-caption text-text-secondary">{t('orders_code_label')}</p>
+              <p className="m-0 font-mono text-body font-semibold text-text-primary">{order.orderCode}</p>
+            </div>
+
+            <p className="mb-0 mt-3 text-body leading-relaxed text-text-secondary">
+              {t('orders_cancel_confirm')}
+            </p>
+
+            {/* Lý do hủy */}
+            <div className="mt-4">
+              <label
+                htmlFor={`cancel-reason-${order.id}`}
+                className="mb-1.5 block text-caption font-medium text-text-primary"
+              >
+                {t('orders_cancel_reason_label')}
+                <span className="ml-1 text-danger">*</span>
+              </label>
+              <textarea
+                id={`cancel-reason-${order.id}`}
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (cancelReasonError) setCancelReasonError('');
+                }}
+                disabled={cancelMutation.isPending}
+                placeholder={t('orders_cancel_reason_placeholder')}
+                maxLength={500}
+                className={cn(
+                  'w-full resize-none rounded-sm border px-3 py-2 text-body text-text-primary',
+                  'placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                  cancelReasonError ? 'border-danger focus:border-danger' : 'border-border focus:border-primary',
+                  'disabled:opacity-60'
+                )}
+              />
+              <div className="mt-1 flex justify-between gap-2">
+                {cancelReasonError ? (
+                  <p className="m-0 text-caption text-danger">{cancelReasonError}</p>
+                ) : (
+                  <span />
+                )}
+                <p className={cn('m-0 text-caption tabular-nums', cancelReason.length > 480 ? 'text-warning' : 'text-text-disabled')}>
+                  {cancelReason.length}/500
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full rounded-sm sm:w-auto"
+                onClick={onCancelDialogDismiss}
+                disabled={cancelMutation.isPending}
+              >
+                {t('common_close')}
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                className="w-full rounded-sm sm:w-auto"
+                loading={cancelMutation.isPending}
+                disabled={cancelMutation.isPending}
+                onClick={onCancelDialogConfirm}
+              >
+                {t('orders_action_cancel_order')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }

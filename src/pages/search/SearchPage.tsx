@@ -388,6 +388,7 @@ const SearchPage = () => {
                       return (
                         <div key={p.id} className="w-40 flex-shrink-0">
                           <ProductCard
+                            id={p.id}
                             to={`/products/${p.id}`}
                             name={card.name}
                             brand={card.brand}
@@ -526,6 +527,7 @@ const SearchPage = () => {
                             return (
                               <ProductCard
                                 key={p.id}
+                                id={p.id}
                                 to={`/products/${p.id}`}
                                 variant={view}
                                 highlightKeyword={q}

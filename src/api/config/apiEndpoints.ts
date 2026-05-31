@@ -96,6 +96,8 @@ export const API_ENDPOINTS = {
     BY_ID: (id: number | string) => `/orders/${id}`,
     CANCEL: (id: number | string) => `/orders/${id}/cancel`,
     RETURN_REQUEST: (id: number | string) => `/orders/${id}/return-request`,
+    /** `GET /orders/{id}/timeline` — tiến trình đơn hàng dạng stepper cho user FE. */
+    TIMELINE: (id: number | string) => `/orders/${id}/timeline`,
     /** Backend có nhưng FE hiện chưa dùng */
     CONFIRM_PAYMENT: (id: number | string) => `/orders/${id}/confirm-payment`,
     /** @see docs/VNPAY_CHECKOUT_SESSIONS_FE_GUIDE.md */
