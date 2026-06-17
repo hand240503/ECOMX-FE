@@ -40,7 +40,8 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
-type RefundTarget = 'WALLET' | 'BANK_TRANSFER';
+/** Hoàn tiền mặt (đơn này hoàn về tiền mặt, không qua ví/ngân hàng). */
+const REFUND_METHOD_CASH = 'CASH';
 
 type MediaFile = {
   file: File;
