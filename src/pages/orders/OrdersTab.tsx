@@ -412,8 +412,9 @@ function OrderCard({
               : t('orders_action_order_detail')}
           </Link>
 
-          {/* ── Status 1: Hủy đơn ────────────────────────────────────── */}
-          {order.status === 1 ? (
+          {/* ── Status 1: Hủy đơn (ẩn nếu thanh toán VNPAY — đã trả tiền trước) ─ */}
+          {order.status === 1 &&
+          (order.paymentMethod?.code ?? '').trim().toUpperCase() !== 'VNPAY' ? (
             <button
               type="button"
               disabled={cancelMutation.isPending}

@@ -22,10 +22,7 @@ import MainFooter from '../../layout/footer/MainFooter';
 import MainHeader from '../../layout/header/MainHeader';
 import { notify } from '../../utils/notify';
 import { cn } from '../../lib/cn';
-import { CheckCircle2, Loader2 } from 'lucide-react';
-
-/** Số giây đếm ngược trên màn hình thành công trước khi tự chuyển về Đơn hàng. */
-const SUCCESS_REDIRECT_SECONDS = 5;
+import { Loader2 } from 'lucide-react';
 
 function normState(s: string | undefined): string {
   return (s ?? '').trim().toUpperCase();
@@ -100,12 +97,6 @@ export default function VnpayCallbackPage() {
   /** Mốc dừng poll (~2 phút): hết hạn thì ngừng hỏi BE và hiển thị kết quả cuối/timeout. */
   const pollDeadlineRef = useRef<number | null>(null);
   const [pollTimedOut, setPollTimedOut] = useState(false);
-  /** Màn hình thanh toán thành công + đếm ngược chuyển về Đơn hàng. */
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [successCountdown, setSuccessCountdown] = useState(SUCCESS_REDIRECT_SECONDS);
-  const [successOrderId, setSuccessOrderId] = useState<number | null>(null);
-
-  const goToOrders = useCallback(() => navigate('/orders', { replace: true }), [navigate]);
 
   const ctx = useMemo(() => readVnpayPendingContext(), []);
   const transactionPublicId = ctx?.transactionPublicId ?? null;
@@ -147,12 +138,11 @@ export default function VnpayCallbackPage() {
           transactionPublicId,
           lineKeys: lineKeysForOrder,
         });
-        /** Xóa ngay — luồng 00 thường điều hướng trước khi effect COMPLETED chạy nên giỏ không được gỡ nếu chỉ dựa vào useEffect bên dưới. */
+        /** Xóa ngay — luồng 00 thường `navigate` trước khi effect COMPLETED chạy nên giỏ không được gỡ nếu chỉ dựa vào useEffect bên dưới. */
         removeVnpayLinesFromCart(lineKeysForOrder);
         clearStoredCheckoutLineKeys();
         clearVnpayPendingContext();
-        // Hiển thị màn hình thành công + đếm ngược thay vì chuyển ngay.
-        setPaymentSuccess(true);
+        navigate('/orders', { replace: true });
         return;
       }
 
@@ -190,17 +180,6 @@ export default function VnpayCallbackPage() {
     const id = window.setTimeout(() => setPollTimedOut(true), remaining);
     return () => window.clearTimeout(id);
   }, [returnFlowReady]);
-
-  // Đếm ngược trên màn hình thành công rồi tự chuyển về Đơn hàng.
-  useEffect(() => {
-    if (!paymentSuccess) return;
-    if (successCountdown <= 0) {
-      goToOrders();
-      return;
-    }
-    const id = window.setTimeout(() => setSuccessCountdown((c) => c - 1), 1000);
-    return () => window.clearTimeout(id);
-  }, [paymentSuccess, successCountdown, goToOrders]);
 
   const pendingQuery = useQuery({
     queryKey: ['vnpay-pending', transactionPublicId],
@@ -289,8 +268,7 @@ export default function VnpayCallbackPage() {
       clearVnpayPendingContext();
       clearVnpayOrdersAwaitPayload();
       notify.success(t('checkout_success').replace('{code}', order.orderCode));
-      setSuccessOrderId(order.id ?? null);
-      setPaymentSuccess(true);
+      navigate('/orders', { replace: true });
       return;
     }
 
@@ -316,52 +294,6 @@ export default function VnpayCallbackPage() {
   }, [transactionPublicId, stateU, order, ctx?.lineKeys, removeVnpayLinesFromCart, queryClient, t, navigate]);
 
   const hasVnpResponseCode = vnpResponseCode != null && vnpResponseCode.trim() !== '';
-
-  if (paymentSuccess) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <MainHeader />
-        <main className="mx-auto flex w-full max-w-container flex-1 flex-col items-center justify-center px-4 py-16">
-          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-8 text-center shadow-sm">
-            <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-success/10">
-              <CheckCircle2 className="size-12 text-success" aria-hidden />
-            </div>
-            <h1 className="mt-6 text-display text-text-primary">{t('vnpay_success_title')}</h1>
-            <p className="mt-2 text-body text-text-secondary">{t('vnpay_success_subtitle')}</p>
-            <p className="mt-6 text-body text-text-secondary" aria-live="polite">
-              {t('vnpay_success_redirect').replace('{n}', String(Math.max(0, successCountdown)))}
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <button
-                type="button"
-                onClick={goToOrders}
-                className={cn(
-                  'inline-flex items-center justify-center rounded-sm border-0 bg-[#1a94ff] px-5 py-2.5',
-                  'text-body font-semibold text-white hover:brightness-[1.03] focus-visible:outline-none',
-                  'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
-                )}
-              >
-                {t('vnpay_success_go_now')}
-              </button>
-              {successOrderId != null ? (
-                <Link
-                  to={`/orders/${successOrderId}`}
-                  className={cn(
-                    'inline-flex items-center justify-center rounded-sm border border-border bg-surface px-5 py-2.5',
-                    'text-body font-medium text-text-primary hover:bg-background focus-visible:outline-none',
-                    'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
-                  )}
-                >
-                  {t('vnpay_callback_view_order')}
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </main>
-        <MainFooter />
-      </div>
-    );
-  }
 
   if (!returnFlowReady) {
     return (
