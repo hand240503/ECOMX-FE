@@ -58,10 +58,6 @@ export default function ReturnRequestPage() {
 
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
-  const [refundTarget, setRefundTarget] = useState<RefundTarget>('BANK_TRANSFER');
-  const [bankName, setBankName] = useState('');
-  const [bankAccount, setBankAccount] = useState('');
-  const [bankEmail, setBankEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ── Media state ─────────────────────────────────────────────────────────────
@@ -149,9 +145,6 @@ export default function ReturnRequestPage() {
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!reason) next.reason = t('return_page_error_reason');
-    if (refundTarget === 'BANK_TRANSFER' && (!bankName.trim() || !bankAccount.trim())) {
-      next.bank = t('return_page_error_bank');
-    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -162,10 +155,7 @@ export default function ReturnRequestPage() {
     // TODO: khi backend hỗ trợ multipart, gửi mediaFiles[].file qua FormData
     submitMutation.mutate({
       reason: `${reason}${description ? ' — ' + description : ''}`,
-      refundMethod: refundTarget,
-      bankName: refundTarget === 'BANK_TRANSFER' ? bankName : undefined,
-      bankAccountNumber: refundTarget === 'BANK_TRANSFER' ? bankAccount : undefined,
-      bankEmail: refundTarget === 'BANK_TRANSFER' ? (bankEmail || undefined) : undefined,
+      refundMethod: REFUND_METHOD_CASH,
     });
   };
 
@@ -489,93 +479,15 @@ export default function ReturnRequestPage() {
             <span className="font-semibold tabular-nums text-text-primary">{formatPrice(refundAmount)}</span>
           </div>
 
-          {/* Refund target toggle */}
+          {/* Hình thức hoàn tiền: Tiền mặt */}
           <div className="mb-4">
             <p className="mb-2 text-caption font-medium text-text-primary">
               {t('return_page_refund_to_label')}
             </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setRefundTarget('WALLET')}
-                className={cn(
-                  'rounded-sm border px-4 py-2 text-caption font-medium transition-colors',
-                  refundTarget === 'WALLET'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-background text-text-secondary hover:border-primary/50'
-                )}
-              >
-                {t('return_page_refund_wallet')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setRefundTarget('BANK_TRANSFER')}
-                className={cn(
-                  'rounded-sm border px-4 py-2 text-caption font-medium transition-colors',
-                  refundTarget === 'BANK_TRANSFER'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-background text-text-secondary hover:border-primary/50'
-                )}
-              >
-                {t('return_page_refund_bank')}
-              </button>
+            <div className="inline-flex items-center gap-2 rounded-sm border border-primary bg-primary/10 px-4 py-2 text-caption font-medium text-primary">
+              {t('return_page_refund_cash')}
             </div>
           </div>
-
-          {/* Bank fields */}
-          {refundTarget === 'BANK_TRANSFER' && (
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-caption font-medium text-text-primary">
-                  <span className="text-danger mr-0.5">*</span>
-                  {t('return_page_bank_label')}
-                </label>
-                <input
-                  type="text"
-                  value={bankName}
-                  onChange={(e) => { setBankName(e.target.value); setErrors((p) => ({ ...p, bank: '' })); }}
-                  placeholder={t('return_page_bank_name_placeholder')}
-                  className={cn(
-                    'w-full rounded-sm border bg-background px-3 py-2 text-body text-text-primary',
-                    'placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-primary',
-                    errors.bank ? 'border-danger' : 'border-border'
-                  )}
-                />
-              </div>
-              <div>
-                <input
-                  type="text"
-                  value={bankAccount}
-                  onChange={(e) => { setBankAccount(e.target.value); setErrors((p) => ({ ...p, bank: '' })); }}
-                  placeholder={t('return_page_bank_account_placeholder')}
-                  className={cn(
-                    'w-full rounded-sm border bg-background px-3 py-2 text-body text-text-primary',
-                    'placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-primary',
-                    errors.bank ? 'border-danger' : 'border-border'
-                  )}
-                />
-              </div>
-              {errors.bank ? (
-                <p className="m-0 text-caption text-danger">{errors.bank}</p>
-              ) : null}
-              <div>
-                <label className="mb-1 block text-caption font-medium text-text-primary">
-                  {t('return_page_email_label')}
-                </label>
-                <input
-                  type="email"
-                  value={bankEmail}
-                  onChange={(e) => setBankEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className={cn(
-                    'w-full rounded-sm border border-border bg-background px-3 py-2 text-body',
-                    'text-text-primary placeholder:text-text-disabled',
-                    'focus:outline-none focus:ring-2 focus:ring-primary'
-                  )}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Refund summary */}
           <div className="mt-4 space-y-1 border-t border-border pt-3">

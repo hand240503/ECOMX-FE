@@ -919,6 +919,7 @@
   "return_page_refund_amount_label": "Số tiền hoàn lại",
   "return_page_refund_to_label": "Hoàn tiền vào",
   "return_page_refund_wallet": "Ví điện tử",
+  "return_page_refund_cash": "Tiền mặt",
   "return_page_refund_bank": "Tài khoản ngân hàng",
   "return_page_bank_label": "Chọn ngân hàng",
   "return_page_bank_add": "+ Add Bank Account",

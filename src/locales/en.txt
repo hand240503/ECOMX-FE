@@ -919,6 +919,7 @@
   "return_page_refund_amount_label": "Refund amount",
   "return_page_refund_to_label": "Refund to",
   "return_page_refund_wallet": "E-wallet",
+  "return_page_refund_cash": "Cash",
   "return_page_refund_bank": "Bank account",
   "return_page_bank_label": "Select bank",
   "return_page_bank_add": "+ Add Bank Account",
