@@ -15,6 +15,7 @@ import {
 } from '../../lib/vnpayPendingStorage';
 import { clearVnpayOrdersAwaitPayload, setVnpayOrdersAwaitPayload } from '../../lib/vnpayOrdersAwaitStorage';
 import { isVnpayPaymentFailedRedirectToCheckout } from '../../lib/vnpayResponseCodeMap';
+import { VNPAY_POLL_MAX_MS } from '../../lib/vnpayPolling';
 import { VnpayUrlResponseBanner } from '../../components/payment/VnpayUrlResponseBanner';
 import { Button } from '../../components/ui/Button';
 import MainFooter from '../../layout/footer/MainFooter';
@@ -93,6 +94,9 @@ export default function VnpayCallbackPage() {
   const terminalHandledRef = useRef(false);
   const [abandonUiPending, setAbandonUiPending] = useState(false);
   const [returnFlowReady, setReturnFlowReady] = useState(false);
+  /** Mốc dừng poll (~2 phút): hết hạn thì ngừng hỏi BE và hiển thị kết quả cuối/timeout. */
+  const pollDeadlineRef = useRef<number | null>(null);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
 
   const ctx = useMemo(() => readVnpayPendingContext(), []);
   const transactionPublicId = ctx?.transactionPublicId ?? null;
@@ -166,12 +170,25 @@ export default function VnpayCallbackPage() {
     };
   }, [transactionPublicId, searchParamsKey, navigate, queryClient, ctx, removeVnpayLinesFromCart]);
 
+  // Bắt đầu đếm cửa sổ poll khi luồng return sẵn sàng; hết ~2 phút thì dừng + báo timeout.
+  useEffect(() => {
+    if (!returnFlowReady) return;
+    if (pollDeadlineRef.current == null) {
+      pollDeadlineRef.current = Date.now() + VNPAY_POLL_MAX_MS;
+    }
+    const remaining = Math.max(0, pollDeadlineRef.current - Date.now());
+    const id = window.setTimeout(() => setPollTimedOut(true), remaining);
+    return () => window.clearTimeout(id);
+  }, [returnFlowReady]);
+
   const pendingQuery = useQuery({
     queryKey: ['vnpay-pending', transactionPublicId],
     queryFn: () => orderService.getVnpayPending(transactionPublicId!),
     enabled: Boolean(transactionPublicId) && returnFlowReady,
     refetchInterval: (q) => {
       if (!isPendingState(q.state.data?.state)) return false;
+      // Dừng poll khi quá cửa sổ thời gian (BE cũng đã ngừng querydr).
+      if (pollDeadlineRef.current != null && Date.now() >= pollDeadlineRef.current) return false;
       return (vnpResponseCode ?? '').trim() === '00' ? 2000 : 2800;
     },
   });
@@ -430,7 +447,7 @@ export default function VnpayCallbackPage() {
               ) : null}
             </dl>
 
-            {isSessionPending ? (
+            {isSessionPending && !pollTimedOut ? (
               <div className="mt-4 space-y-3">
                 <div className="flex items-center gap-2 text-body text-text-secondary">
                   <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -448,6 +465,27 @@ export default function VnpayCallbackPage() {
                   >
                     {t('vnpay_callback_abandon_session')}
                   </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {isSessionPending && pollTimedOut ? (
+              <div className="mt-4 space-y-3">
+                <p className="m-0 text-body font-medium text-warning">
+                  {t('vnpay_callback_timeout_title')}
+                </p>
+                <p className="m-0 text-body text-text-secondary">{t('vnpay_callback_timeout_hint')}</p>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to="/orders"
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-sm border-0 bg-[#1a94ff] px-4 py-2.5',
+                      'text-body font-semibold text-white hover:brightness-[1.03] focus-visible:outline-none',
+                      'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+                    )}
+                  >
+                    {t('vnpay_callback_orders')}
+                  </Link>
                 </div>
               </div>
             ) : null}

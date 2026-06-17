@@ -2,7 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { ClipboardList, MessageCircle, Search } from 'lucide-react';
 import { format, isValid, parseISO, type Locale } from 'date-fns';
 import { enUS, vi } from 'date-fns/locale';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../app/cart/CartProvider';
 import { orderService, productService } from '../../api/services';
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useI18n } from '../../i18n/I18nProvider';
 import { parseCartLineKey } from '../../lib/cartStorage';
 import { clearVnpayOrdersAwaitPayload, type VnpayOrdersAwaitPayload, readVnpayOrdersAwaitPayload } from '../../lib/vnpayOrdersAwaitStorage';
+import { VNPAY_POLL_MAX_MS } from '../../lib/vnpayPolling';
 import { cn } from '../../lib/cn';
 import { formatPrice } from '../../lib/formatPrice';
 import { parseOrderDescriptionJson } from '../../lib/orderDescriptionJson';
@@ -598,12 +599,37 @@ export default function OrdersTab() {
   const [vnpayOrdersAwait, setVnpayOrdersAwait] = useState<VnpayOrdersAwaitPayload | null>(() =>
     readVnpayOrdersAwaitPayload()
   );
+  // Mốc dừng poll (~2 phút) cho mỗi transaction; hết cửa sổ thì ngừng hỏi BE.
+  const awaitDeadlineRef = useRef<number | null>(null);
+  const awaitTxnRef = useRef<string | null>(null);
+  const currentAwaitTxn = vnpayOrdersAwait?.transactionPublicId ?? null;
+  if (currentAwaitTxn !== awaitTxnRef.current) {
+    awaitTxnRef.current = currentAwaitTxn;
+    awaitDeadlineRef.current = currentAwaitTxn ? Date.now() + VNPAY_POLL_MAX_MS : null;
+  }
   const vnpayPollQuery = useQuery({
     queryKey: ['vnpay-orders-await-pending', vnpayOrdersAwait?.transactionPublicId],
     queryFn: () => orderService.getVnpayPending(vnpayOrdersAwait!.transactionPublicId),
     enabled: Boolean(vnpayOrdersAwait?.transactionPublicId),
-    refetchInterval: (q) => (isVnpaySessionPending(q.state.data?.state) ? 2000 : false),
+    refetchInterval: (q) => {
+      if (!isVnpaySessionPending(q.state.data?.state)) return false;
+      if (awaitDeadlineRef.current != null && Date.now() >= awaitDeadlineRef.current) return false;
+      return 2000;
+    },
   });
+
+  // Hết cửa sổ ~2 phút mà vẫn PENDING: ngừng theo dõi (xóa await payload). Đơn vẫn hiện khi BE chốt.
+  useEffect(() => {
+    if (!vnpayOrdersAwait?.transactionPublicId) return;
+    const deadline = awaitDeadlineRef.current;
+    if (deadline == null) return;
+    const remaining = Math.max(0, deadline - Date.now());
+    const id = window.setTimeout(() => {
+      clearVnpayOrdersAwaitPayload();
+      setVnpayOrdersAwait(null);
+    }, remaining);
+    return () => window.clearTimeout(id);
+  }, [vnpayOrdersAwait?.transactionPublicId]);
 
   useEffect(() => {
     if (!vnpayOrdersAwait) return;

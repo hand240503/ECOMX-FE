@@ -209,6 +209,8 @@
   "vnpay_callback_txn_ref_session": "Tham chiếu VNPAY (vnp_TxnRef) = id phiên checkout {id} — chưa phải mã đơn hàng.",
   "vnpay_callback_txn_ref_generic": "Tham chiếu giao dịch (vnp_TxnRef): {id}",
   "vnpay_callback_waiting_ipn": "Đang chờ máy chủ ghi nhận đơn qua IPN — làm mới danh sách đơn hoặc đợi vài giây.",
+  "vnpay_callback_timeout_title": "Chưa xác nhận được kết quả thanh toán sau 2 phút.",
+  "vnpay_callback_timeout_hint": "Hệ thống đã ngừng kiểm tra tự động. Nếu bạn đã thanh toán thành công, đơn sẽ xuất hiện trong mục Đơn hàng khi máy chủ ghi nhận. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.",
   "vnpay_callback_loading_order": "Đang đồng bộ danh sách đơn…",
   "vnpay_callback_no_order_match": "Chưa ghép được đơn mới với phiên này. Mở danh sách đơn để kiểm tra — đơn có thể xuất hiện sau vài giây khi IPN hoàn tất.",
   "vnpay_callback_no_params": "Không có thông tin thanh toán trên URL. Mở mục đơn hàng để kiểm tra.",

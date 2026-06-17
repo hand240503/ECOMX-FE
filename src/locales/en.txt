@@ -209,6 +209,8 @@
   "vnpay_callback_txn_ref_session": "VNPAY reference (vnp_TxnRef) is checkout session id {id} — not your order id yet.",
   "vnpay_callback_txn_ref_generic": "Transaction reference (vnp_TxnRef): {id}",
   "vnpay_callback_waiting_ipn": "Waiting for the server to record your order via IPN — refresh the order list or wait a few seconds.",
+  "vnpay_callback_timeout_title": "Could not confirm the payment result after 2 minutes.",
+  "vnpay_callback_timeout_hint": "Automatic checking has stopped. If your payment succeeded, the order will appear under Orders once the server records it. Please check again or contact support.",
   "vnpay_callback_loading_order": "Syncing your orders…",
   "vnpay_callback_no_order_match": "Could not match this session to a new order yet. Open your order list — it may appear in a few seconds after IPN completes.",
   "vnpay_callback_no_params": "No payment info in the URL. Open your orders to verify.",
