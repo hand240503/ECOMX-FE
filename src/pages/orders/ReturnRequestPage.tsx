@@ -262,7 +262,16 @@ export default function ReturnRequestPage() {
           <ul className="m-0 list-none divide-y divide-border p-0">
             {(order.orderDetails ?? []).map((line) => (
               <li key={line.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="size-14 shrink-0 overflow-hidden rounded-sm border border-border bg-background" />
+                <div className="size-14 shrink-0 overflow-hidden rounded-sm border border-border bg-background">
+                  {line.thumbnail_url ?? line.thumbnailUrl ? (
+                    <img
+                      src={(line.thumbnail_url ?? line.thumbnailUrl) as string}
+                      alt={line.productName ?? `Product #${line.productId}`}
+                      className="size-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="m-0 line-clamp-2 text-body font-medium text-text-primary">
                     {line.productName ?? `Product #${line.productId}`}

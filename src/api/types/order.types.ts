@@ -130,6 +130,9 @@ export type CreatedOrderDetail = {
   productVariantId?: number;
   variantSkuCode?: string | null;
   variantOptions?: Record<string, string> | null;
+  /** Ảnh thumbnail sản phẩm. BE trả snake_case `thumbnail_url`. */
+  thumbnail_url?: string | null;
+  thumbnailUrl?: string | null;
   /** Snapshot JSON từ BE; đơn cũ có thể không có. Snake_case: `pricing_programs`. */
   pricingPrograms?: OrderLinePricingProgramsSnapshot | null;
 };
