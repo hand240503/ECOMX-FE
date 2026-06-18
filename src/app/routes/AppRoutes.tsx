@@ -37,7 +37,6 @@ import OrderReviewPage from '../../pages/orders/OrderReviewPage';
 import OrdersTab from '../../pages/orders/OrdersTab';
 import OrdersPage from '../../pages/orders/OrdersPage';
 import ReturnRequestPage from '../../pages/orders/ReturnRequestPage';
-import TestPage from '../../pages/TestPage';
 import { useI18n } from '../../i18n/I18nProvider';
 
 /** Đường dẫn cũ /account/orders/:id → /orders/:id */
@@ -65,8 +64,6 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<AppRootLayout />}>
       <Route index element={<HomePage />} />
-
-      <Route path="test" element={<TestPage />} />
 
       <Route path="search" element={<SearchPage />} />
 
