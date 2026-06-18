@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 const App = () => {
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CartProvider>
