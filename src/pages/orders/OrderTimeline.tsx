@@ -1,6 +1,6 @@
 import { format, isValid, parseISO } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
-import { Check, Package, ClipboardCheck, Truck, Star, XCircle, MapPin } from 'lucide-react';
+import { Check, Package, ClipboardCheck, Truck, Star, XCircle, MapPin, RotateCcw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { OrderTimelineStep } from '../../api/types/order.types';
 import { cn } from '../../lib/cn';
@@ -23,20 +23,24 @@ function fmtTimestamp(iso: string | null | undefined, lang: Lang): string {
 function StepIcon({
   stepIndex,
   statusCode,
+  label,
   completed,
   current,
   cancelled,
 }: {
   stepIndex: number;
   statusCode: number | null;
+  label: string;
   completed: boolean;
   current: boolean;
   cancelled: boolean;
 }) {
   const iconProps = { className: 'size-4 shrink-0', strokeWidth: 2, 'aria-hidden': true };
 
-  // Bước Đánh giá (virtual)
-  if (statusCode === null) return <Star {...iconProps} />;
+  // Bước virtual (statusCode=null): Trả hàng (mũi tên hoàn) hoặc Đánh giá (sao)
+  if (statusCode === null) {
+    return /trả|return|hoàn/i.test(label) ? <RotateCcw {...iconProps} /> : <Star {...iconProps} />;
+  }
   // Bước Hủy
   if (cancelled && statusCode === 5) return <XCircle {...iconProps} />;
 
@@ -121,6 +125,7 @@ function TimelineStepNode({
         <StepIcon
           stepIndex={step.stepIndex}
           statusCode={statusCode}
+          label={step.statusLabel}
           completed={completed}
           current={current}
           cancelled={cancelled}
