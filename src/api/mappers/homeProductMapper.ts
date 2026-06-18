@@ -103,7 +103,7 @@ export function mapProductFullToCard(product: ProductFullResponse): HomeProductC
     originalPrice,
     discountPercent: discountPercent != null && discountPercent > 0 ? discountPercent : undefined,
     priceIsFrom: multi ? true : undefined,
-    rating: product.averageRating ?? 0,
+    rating: product.averageRating && product.averageRating > 0 ? product.averageRating : 5,
     soldCount: Number(product.soldCount ?? 0),
     location: product.category?.name ?? '—',
     isFreeship: isProductFreeship(product),

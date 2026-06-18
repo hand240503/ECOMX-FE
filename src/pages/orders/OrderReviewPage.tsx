@@ -85,7 +85,10 @@ export default function OrderReviewPage() {
 
   const existingByProduct = useMemo(() => {
     const m = new Map<number, UserRating>();
-    for (const r of ratingsQuery.data ?? []) m.set(r.productId, r);
+    // Chỉ lấy đánh giá explicit (type 0/null); bỏ qua implicit (type=1, thang 0–10) do builder sinh.
+    for (const r of ratingsQuery.data ?? []) {
+      if (r.type == null || r.type === 0) m.set(r.productId, r);
+    }
     return m;
   }, [ratingsQuery.data]);
 

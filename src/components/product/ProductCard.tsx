@@ -76,7 +76,7 @@ const ProductCard = ({
   price,
   originalPrice,
   discountPercent,
-  rating = 4.8,
+  rating = 5,
   soldCount = 0,
   location = 'Hà Nội',
   isFreeship = true,

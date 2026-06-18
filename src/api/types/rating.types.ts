@@ -5,7 +5,10 @@ export interface UserRating {
   username?: string;
   productId: number;
   productName?: string;
+  /** Thang sao 1–5 (explicit). */
   rating: number;
+  /** 0/null = explicit (người dùng chấm), 1 = implicit (recommend builder sinh). */
+  type?: number | null;
   comment?: string | null;
   createdDate?: string;
   modifiedDate?: string;

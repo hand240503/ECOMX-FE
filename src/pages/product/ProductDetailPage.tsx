@@ -619,20 +619,20 @@ const ProductDetailPage = () => {
     toast.success(next ? t('pdp_wishlist_added') : t('pdp_wishlist_removed'));
   };
 
-  const ratingBlock =
-    detailModel && detailModel.ratingCount > 0 ? (
-      <div className="inline-flex flex-wrap items-center gap-2 text-body text-text-secondary">
-        <span className="font-semibold text-text-primary">
-          {(detailModel.averageRating ?? 0).toFixed(1)}
-        </span>
-        <RatingStars value={detailModel.averageRating ?? 0} size="sm" />
+  const hasExplicitRatings = !!detailModel && detailModel.ratingCount > 0;
+  // Chưa có đánh giá explicit nào → mặc định hiển thị 5 sao.
+  const displayRating = hasExplicitRatings ? (detailModel!.averageRating ?? 5) : 5;
+  const ratingBlock = (
+    <div className="inline-flex flex-wrap items-center gap-2 text-body text-text-secondary">
+      <span className="font-semibold text-text-primary">{displayRating.toFixed(1)}</span>
+      <RatingStars value={displayRating} size="sm" />
+      {hasExplicitRatings ? (
         <span className="text-caption">
-          ({detailModel.ratingCount} {t('pdp_reviews_count')})
+          ({detailModel!.ratingCount} {t('pdp_reviews_count')})
         </span>
-      </div>
-    ) : (
-      <span className="text-caption text-text-disabled">{t('pdp_no_reviews_yet')}</span>
-    );
+      ) : null}
+    </div>
+  );
 
   const scrollToDescription = () => {
     document.getElementById('pdp-description')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
