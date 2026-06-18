@@ -8,3 +8,4 @@ export { orderService } from './orderService';
 export { shippingService } from './shippingService';
 export { collectorLogService } from './collectorLogService';
 export { ratingService } from './ratingService';
+export { notificationService } from './notificationService';

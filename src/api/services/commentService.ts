@@ -19,6 +19,8 @@ export interface ProductRating {
   id: number;
   userId: number;
   username: string | null;
+  fullName?: string | null;
+  avatar?: string | null;
   productId: number;
   rating: number;
   comment: string | null;

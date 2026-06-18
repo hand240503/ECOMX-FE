@@ -1,22 +1,14 @@
-import { useRef, useState, useMemo } from 'react';
-import axios from 'axios';
-import {
-  CheckCircle2,
-  ImageIcon,
-  Loader2,
-  MessageCircle,
-  Send,
-  Star,
-  Trash2,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ImageIcon, Loader2, Pencil, Star, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { cn } from '../../../lib/cn';
 import { useAuth } from '../../../app/auth/AuthProvider';
-import { useProductComments, useCreateComment, useDeleteComment } from '../../../hooks/useProductComments';
-import { useQuery, useQueries } from '@tanstack/react-query';
-import { orderService } from '../../../api/services';
+import { useProductComments } from '../../../hooks/useProductComments';
+import { ratingService } from '../../../api/services';
+import { notify } from '../../../utils/notify';
 
-// ─── Fractional stars ────────────────────────────────────────────────────────
+// ─── Fractional stars (tổng quan) ─────────────────────────────────────────────
 function FractionalStars({ value, size = 20 }: { value: number; size?: number }) {
   const v = Math.min(5, Math.max(0, value));
   return (
@@ -26,10 +18,7 @@ function FractionalStars({ value, size = 20 }: { value: number; size?: number })
         return (
           <div key={i} className="relative shrink-0" style={{ width: size, height: size }}>
             <Star size={size} className="absolute text-border" strokeWidth={2} fill="none" />
-            <div
-              className="absolute inset-y-0 left-0 overflow-hidden"
-              style={{ width: `${fill * 100}%` }}
-            >
+            <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
               <Star size={size} className="fill-warning text-warning" strokeWidth={0} />
             </div>
           </div>
@@ -39,7 +28,53 @@ function FractionalStars({ value, size = 20 }: { value: number; size?: number })
   );
 }
 
-// ─── Avatar initials ──────────────────────────────────────────────────────────
+// ─── Hàng sao đặc (1 review) ──────────────────────────────────────────────────
+function StarRow({ value, size = 15 }: { value: number; size?: number }) {
+  const n = Math.round(Math.min(5, Math.max(0, value)));
+  return (
+    <div className="flex items-center gap-0.5" aria-label={`${n}/5`}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          size={size}
+          className={cn(i < n ? 'fill-warning text-warning' : 'fill-none text-border')}
+          strokeWidth={i < n ? 0 : 2}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Ô chấm sao tương tác (khi sửa) ───────────────────────────────────────────
+function StarInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hover, setHover] = useState(0);
+  const active = hover || value;
+  return (
+    <div className="flex items-center gap-1" role="radiogroup" aria-label="rating">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n}`}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => onChange(n)}
+          className="rounded-sm p-0.5 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <Star
+            size={22}
+            className={cn(n <= active ? 'fill-warning text-warning' : 'fill-none text-border')}
+            strokeWidth={n <= active ? 0 : 2}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
   'bg-primary/15 text-primary',
   'bg-warning/15 text-warning',
@@ -48,33 +83,51 @@ const AVATAR_COLORS = [
   'bg-pink-100 text-pink-700',
 ];
 function avatarColor(userId: number) {
-  return AVATAR_COLORS[userId % AVATAR_COLORS.length];
+  return AVATAR_COLORS[Math.abs(userId) % AVATAR_COLORS.length];
 }
-function initials(fullName: string | null, username: string | null): string {
-  const name = fullName ?? username ?? '?';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
+function ReviewAvatar({
+  avatar,
+  name,
+  userId,
+}: {
+  avatar?: string | null;
+  name: string;
+  userId: number;
+}) {
+  if (avatar && avatar.trim()) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        className="h-11 w-11 shrink-0 rounded-full border border-border object-cover"
+        loading="lazy"
+      />
+    );
+  }
+  return (
+    <div
+      className={cn(
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-body font-bold',
+        avatarColor(userId)
+      )}
+      aria-hidden
+    >
+      {(name[0] ?? '?').toUpperCase()}
+    </div>
+  );
 }
 
 // ─── Date formatter ───────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return iso;
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-// ─── Error message extractor ──────────────────────────────────────────────────
-function extractError(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const body = err.response?.data as { message?: string } | undefined;
-    if (typeof body?.message === 'string' && body.message.trim()) return body.message.trim();
-  }
-  if (err instanceof Error && err.message.trim()) return err.message.trim();
-  return fallback;
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,94 +143,74 @@ type ProductReviewsPlaceholderProps = {
 export function ProductReviewsPlaceholder({ productId, id, className }: ProductReviewsPlaceholderProps) {
   const { t } = useI18n();
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterId>('newest');
-  const [commentText, setCommentText] = useState('');
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const pid = productId ?? null;
 
-  const {
-    comments,
-    commentsLoading,
-    commentsError,
-    avgRating,
-    totalRatings,
-    ratings,
-  } = useProductComments(pid);
+  const { avgRating, totalRatings, ratings, ratingsLoading } = useProductComments(pid);
 
-  const createMutation = useCreateComment(pid ?? 0);
-  const deleteMutation = useDeleteComment(pid ?? 0);
+  // ── Trạng thái sửa/xoá ──────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
 
-  const { data: userOrders = [] } = useQuery({
-    queryKey: ['user-orders-check-completed'],
-    queryFn: () => orderService.listOrders(4), // 4 is COMPLETED
-    enabled: isAuthenticated && pid !== null,
-    staleTime: 5 * 60 * 1000,
-  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['product-ratings', pid] });
 
-  const ordersNeedingDetails = useMemo(() => {
-    return userOrders.filter((o) => !o.orderDetails || o.orderDetails.length === 0);
-  }, [userOrders]);
+  const startEdit = (r: { id: number; rating: number; comment: string | null }) => {
+    setEditingId(r.id);
+    setEditRating(Math.round(r.rating) || 5);
+    setEditComment(r.comment ?? '');
+  };
+  const cancelEdit = () => setEditingId(null);
 
-  const enrichQueries = useQueries({
-    queries: ordersNeedingDetails.map((o) => ({
-      queryKey: ['order-detail-check-purchase', o.id],
-      queryFn: () => orderService.getOrderById(o.id),
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
+  const saveEdit = async (ratingId: number) => {
+    setBusyId(ratingId);
+    try {
+      await ratingService.update(ratingId, {
+        rating: editRating,
+        comment: editComment.trim() === '' ? undefined : editComment.trim(),
+      });
+      await invalidate();
+      setEditingId(null);
+      notify.success('Đã cập nhật đánh giá');
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Cập nhật đánh giá thất bại');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-  const hasPurchased = useMemo(() => {
-    if (!isAuthenticated || !pid) return false;
+  const handleDelete = async (ratingId: number) => {
+    if (typeof window !== 'undefined' && !window.confirm('Xoá đánh giá này?')) return;
+    setBusyId(ratingId);
+    try {
+      await ratingService.remove(ratingId);
+      await invalidate();
+      if (editingId === ratingId) setEditingId(null);
+      notify.success('Đã xoá đánh giá');
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : 'Xoá đánh giá thất bại');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-    // Check if any order already has details and contains the product
-    const foundInPopulated = userOrders.some((o) =>
-      o.orderDetails?.some((line) => line.productId === pid)
-    );
-    if (foundInPopulated) return true;
-
-    // Check in the enriched queries
-    const foundInEnriched = enrichQueries.some((q) =>
-      q.data?.orderDetails?.some((line) => line.productId === pid)
-    );
-    return foundInEnriched;
-  }, [userOrders, enrichQueries, pid, isAuthenticated]);
-
-  // ── Rating distribution (computed from ratings array) ─────────────────────
+  // ── Phân bố sao ─────────────────────────────────────────────────────────────
   const distribution = [5, 4, 3, 2, 1].map((star) => ({
     stars: star,
     count: ratings.filter((r) => Math.round(r.rating) === star).length,
   }));
   const maxBar = Math.max(...distribution.map((d) => d.count), 1);
 
-  // ── Filtered & sorted comments ────────────────────────────────────────────
-  const sortedComments = [...comments].sort((a, b) => {
-    const ta = new Date(a.createdDate).getTime();
-    const tb = new Date(b.createdDate).getTime();
-    return filter === 'newest' ? tb - ta : ta - tb;
-  });
-
-  // ── Submit handler ────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (!pid || !commentText.trim()) return;
-    setSubmitError(null);
-    try {
-      await createMutation.mutateAsync(commentText.trim());
-      setCommentText('');
-    } catch (err) {
-      setSubmitError(extractError(err, 'Không thể gửi bình luận. Vui lòng thử lại.'));
-    }
-  };
-
-  // ── Delete handler ────────────────────────────────────────────────────────
-  const handleDelete = async (commentId: number) => {
-    try {
-      await deleteMutation.mutateAsync(commentId);
-    } catch {
-      // silent — comment stays in list on failure
-    }
-  };
+  const sortedReviews = useMemo(() => {
+    return [...ratings].sort((a, b) => {
+      const ta = new Date(a.createdDate).getTime();
+      const tb = new Date(b.createdDate).getTime();
+      return filter === 'newest' ? tb - ta : ta - tb;
+    });
+  }, [ratings, filter]);
 
   const filters: { id: FilterId; label: string }[] = [
     { id: 'newest', label: t('pdp_reviews_filter_newest') },
@@ -193,7 +226,6 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
       )}
       aria-labelledby="pdp-reviews-heading"
     >
-      {/* ── Header ── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 id="pdp-reviews-heading" className="text-heading text-text-primary">
           {t('pdp_reviews_title')}
@@ -207,7 +239,6 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
 
       <div className="my-5 h-px bg-border/90" />
 
-      {/* ── Rating summary ── */}
       {totalRatings > 0 ? (
         <div className="grid gap-6 tablet:grid-cols-[minmax(0,200px)_1fr] lg:grid-cols-[minmax(0,220px)_1fr_minmax(0,140px)] lg:items-start">
           <div className="flex flex-col gap-2">
@@ -229,18 +260,15 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
                   <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-border/80">
                     <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="w-6 shrink-0 text-right tabular-nums text-text-secondary">
-                    {row.count}
-                  </span>
+                  <span className="w-6 shrink-0 text-right tabular-nums text-text-secondary">{row.count}</span>
                 </div>
               );
             })}
           </div>
 
-          {/* placeholder image slot */}
           <div className="flex flex-col gap-2 rounded-xl border border-border/80 bg-background/60 p-3 lg:items-center">
             <p className="text-caption font-medium text-text-primary">
-              {t('pdp_reviews_all_images').replace('{n}', String(comments.length))}
+              {t('pdp_reviews_all_images').replace('{n}', '0')}
             </p>
             <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border bg-surface text-text-disabled">
               <ImageIcon size={28} strokeWidth={1.5} aria-hidden />
@@ -248,74 +276,14 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
           </div>
         </div>
       ) : (
-        !commentsLoading && (
-          <p className="text-caption text-text-secondary">
-            Chưa có đánh giá nào cho sản phẩm này.
-          </p>
+        !ratingsLoading && (
+          <p className="text-caption text-text-secondary">Chưa có đánh giá nào cho sản phẩm này.</p>
         )
       )}
 
-      {/* ── Comment form ── */}
-      {pid != null && isAuthenticated && hasPurchased && (
-        <div className="mt-6 rounded-xl border border-border/70 bg-background/50 p-4">
-          <p className="mb-3 flex items-center gap-2 text-body font-semibold text-text-primary">
-            <MessageCircle size={18} aria-hidden />
-            Viết bình luận
-          </p>
-          <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-caption font-bold',
-                    avatarColor(user!.id)
-                  )}
-                  aria-hidden
-                >
-                  {initials(user!.userInfo?.fullName ?? null, user!.username)}
-                </div>
-                <textarea
-                  ref={textareaRef}
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
-                  rows={3}
-                  maxLength={2000}
-                  className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-body text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              {submitError && (
-                <p className="text-caption text-danger">{submitError}</p>
-              )}
-
-              <div className="flex items-center justify-between">
-                <p className="text-caption text-text-disabled">
-                  {commentText.length}/2000
-                </p>
-                <button
-                  type="button"
-                  disabled={!commentText.trim() || createMutation.isPending}
-                  onClick={() => void handleSubmit()}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-caption font-semibold text-white shadow-sm transition-opacity disabled:opacity-50 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  {createMutation.isPending ? (
-                    <Loader2 size={14} className="animate-spin" aria-hidden />
-                  ) : (
-                    <Send size={14} aria-hidden />
-                  )}
-                  Gửi bình luận
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-      {/* ── Filter tabs ── */}
-      {comments.length > 0 && (
+      {ratings.length > 0 && (
         <div className="mt-6">
-          <p className="mb-2 text-caption font-semibold text-text-secondary">
-            {t('pdp_reviews_filter_by')}
-          </p>
+          <p className="mb-2 text-caption font-semibold text-text-secondary">{t('pdp_reviews_filter_by')}</p>
           <div className="flex flex-wrap gap-2">
             {filters.map((f) => (
               <button
@@ -336,85 +304,100 @@ export function ProductReviewsPlaceholder({ productId, id, className }: ProductR
         </div>
       )}
 
-      {/* ── Comment list ── */}
-      {commentsLoading && (
+      {ratingsLoading && (
         <div className="mt-6 flex items-center justify-center py-8 text-text-secondary">
           <Loader2 size={22} className="animate-spin" aria-hidden />
-          <span className="ml-2 text-caption">Đang tải bình luận...</span>
+          <span className="ml-2 text-caption">Đang tải đánh giá...</span>
         </div>
       )}
 
-      {commentsError && (
-        <p className="mt-6 text-caption text-danger">Không thể tải bình luận. Vui lòng thử lại.</p>
-      )}
-
-      {!commentsLoading && !commentsError && sortedComments.length > 0 && (
+      {!ratingsLoading && sortedReviews.length > 0 && (
         <ul className="mt-6 space-y-6 border-t border-border/80 pt-6">
-          {sortedComments.map((c, idx) => (
-            <li
-              key={c.id}
-              className={cn(
-                'grid gap-4 tablet:grid-cols-[minmax(0,200px)_1fr]',
-                idx > 0 && 'border-t border-border/60 pt-6'
-              )}
-            >
-              {/* Left col — avatar + meta */}
-              <div className="flex gap-3">
-                <div
-                  className={cn(
-                    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-body font-bold',
-                    avatarColor(c.userId)
+          {sortedReviews.map((r, idx) => {
+            const name = r.fullName?.trim() || r.username || 'Người dùng';
+            const isOwn = isAuthenticated && user?.id === r.userId;
+            const isEditing = editingId === r.id;
+            const busy = busyId === r.id;
+            return (
+              <li key={r.id} className={cn('flex gap-3', idx > 0 && 'border-t border-border/60 pt-6')}>
+                <ReviewAvatar avatar={r.avatar} name={name} userId={r.userId} />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="m-0 font-semibold text-text-primary">{name}</p>
+                    {isOwn && !isEditing && (
+                      <div className="flex items-center gap-3 text-caption">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => startEdit(r)}
+                          className="inline-flex items-center gap-1 text-text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded disabled:opacity-50"
+                        >
+                          <Pencil size={14} aria-hidden /> Sửa
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleDelete(r.id)}
+                          className="inline-flex items-center gap-1 text-danger/70 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger rounded disabled:opacity-50"
+                        >
+                          {busy ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Trash2 size={14} aria-hidden />} Xoá
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-2 pt-1">
+                      <StarInput value={editRating} onChange={setEditRating} />
+                      <textarea
+                        value={editComment}
+                        onChange={(e) => setEditComment(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        placeholder="Chia sẻ cảm nhận của bạn..."
+                        className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-body text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void saveEdit(r.id)}
+                          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-caption font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                        >
+                          {busy ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
+                          Lưu thay đổi
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={cancelEdit}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-caption font-medium text-text-secondary hover:text-text-primary disabled:opacity-50"
+                        >
+                          <X size={14} aria-hidden /> Huỷ
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <StarRow value={r.rating} size={15} />
+                      <p className="m-0 text-caption text-text-disabled">{formatDate(r.createdDate)}</p>
+                      {r.comment?.trim() ? (
+                        <p className="m-0 whitespace-pre-line pt-1 text-body leading-relaxed text-text-secondary">
+                          {r.comment.trim()}
+                        </p>
+                      ) : null}
+                    </>
                   )}
-                  aria-hidden
-                >
-                  {initials(c.userFullName, c.username)}
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-text-primary">
-                    {c.userFullName ?? c.username ?? 'Người dùng'}
-                  </p>
-                  {c.username && c.userFullName && (
-                    <p className="mt-0.5 text-caption text-text-disabled">@{c.username}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Right col — content */}
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-caption font-medium text-success">
-                    <CheckCircle2 size={14} aria-hidden />
-                    {t('pdp_reviews_verified_purchase')}
-                  </span>
-                </div>
-
-                <p className="text-body leading-relaxed text-text-secondary">{c.content}</p>
-
-                <p className="text-caption text-text-disabled">{formatDate(c.createdDate)}</p>
-
-                {/* Actions */}
-                <div className="flex flex-wrap items-center gap-4 pt-2 text-caption text-text-secondary">
-                  {isAuthenticated && user?.id === c.userId && (
-                    <button
-                      type="button"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => void handleDelete(c.id)}
-                      className="inline-flex items-center gap-1.5 text-danger/70 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger rounded"
-                    >
-                      <Trash2 size={14} aria-hidden />
-                      Xoá
-                    </button>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {!commentsLoading && !commentsError && sortedComments.length === 0 && (
+      {!ratingsLoading && sortedReviews.length === 0 && totalRatings === 0 && (
         <p className="mt-6 border-t border-border/80 pt-6 text-caption text-text-secondary">
-          Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ!
+          Chưa có đánh giá nào. Mua hàng và đánh giá từ trang đơn hàng của bạn nhé!
         </p>
       )}
     </section>

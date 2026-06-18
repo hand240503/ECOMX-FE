@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Bell, SlidersHorizontal, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Loader2, SlidersHorizontal, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
@@ -17,6 +17,7 @@ import { decodeSearchQuery } from '../../hooks/useSearchUrlState';
 import { pushSearchHistory } from '../../lib/searchHistory';
 import { cn } from '../../lib/cn';
 import { useCart } from '../../app/cart/CartProvider';
+import { NotificationBell } from '../../components/notification/NotificationBell';
 
 const HEADER_SEARCH_SUGGEST_DEBOUNCE_MS = 1000;
 const HEADER_SEARCH_SUGGEST_LIMIT = 5;
@@ -286,14 +287,8 @@ const MainHeader = () => {
         {/* ── Action icons ── */}
         <div className="flex items-center gap-1 flex-shrink-0">
 
-          {/* Bell */}
-          <button
-            type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors outline-none focus:outline-none"
-            aria-label="Thông báo"
-          >
-            <Bell className="h-5 w-5" />
-          </button>
+          {/* Bell — thông báo */}
+          <NotificationBell />
 
           {/* Cart */}
           <button

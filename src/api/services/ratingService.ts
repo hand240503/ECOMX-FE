@@ -52,4 +52,18 @@ export const ratingService = {
     }
     return data.data;
   },
+
+  /** `DELETE /user-ratings/{id}` — xoá đánh giá của chính mình. */
+  async remove(id: number): Promise<void> {
+    const { data } = await axiosInstance.delete<ApiResponse<void>>(
+      API_ENDPOINTS.USER_RATINGS_BY_ID(id)
+    );
+    if (data.success === false) {
+      throw new Error(
+        typeof data.message === 'string' && data.message.trim() !== ''
+          ? data.message.trim()
+          : 'Xoá đánh giá thất bại'
+      );
+    }
+  },
 };

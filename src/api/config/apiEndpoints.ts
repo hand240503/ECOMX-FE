@@ -120,6 +120,14 @@ export const API_ENDPOINTS = {
       `/payment/vnpay/checkout-sessions/${checkoutSessionId}/payment-url`,
   },
 
+  /** Thông báo cho user (cập nhật đơn hàng, trả hàng, thanh toán). */
+  NOTIFICATION: {
+    LIST: '/notifications',
+    UNREAD_COUNT: '/notifications/unread-count',
+    MARK_READ: (id: number | string) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
+  },
+
   /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §1 */
   SHIPPING: {
     DISTANCE_TO_WAREHOUSE: '/shipping/distance-to-warehouse',
