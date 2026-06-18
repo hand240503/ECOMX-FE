@@ -33,6 +33,7 @@ import CheckoutPage from '../../pages/CheckoutPage';
 import VnpayCallbackPage from '../../pages/payment/VnpayCallbackPage';
 import NotFoundPage from '../../pages/NotFoundPage';
 import OrderDetailTab from '../../pages/orders/OrderDetailTab';
+import OrderReviewPage from '../../pages/orders/OrderReviewPage';
 import OrdersTab from '../../pages/orders/OrdersTab';
 import OrdersPage from '../../pages/orders/OrdersPage';
 import ReturnRequestPage from '../../pages/orders/ReturnRequestPage';
@@ -103,6 +104,7 @@ const router = createBrowserRouter(
       >
         <Route index element={<OrdersTab />} />
         <Route path=":orderId" element={<OrderDetailTab />} />
+        <Route path=":orderId/review" element={<OrderReviewPage />} />
       </Route>
 
       <Route path="404" element={<NotFoundPage />} />

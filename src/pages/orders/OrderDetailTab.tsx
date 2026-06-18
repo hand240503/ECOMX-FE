@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Check, ChevronLeft, Copy, Info, Store } from 'lucide-react';
+import { Bell, Check, ChevronLeft, Copy, Info, Star, Store } from 'lucide-react';
 import { format, isValid, parseISO } from 'date-fns';
 import { enUS, vi } from 'date-fns/locale';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -336,6 +336,20 @@ export default function OrderDetailTab() {
             <p className="mb-0 mt-2 text-caption font-medium text-warning">
               {t('orders_return_badge')}: {t(returnRefundStatusLabelKey(order.returnRefundStatus))}
             </p>
+          ) : null}
+          {status === 4 ? (
+            <Link
+              to={`/orders/${order.id}/review`}
+              className={cn(
+                'mt-3 inline-flex items-center justify-center gap-1.5 rounded-sm border border-primary bg-primary',
+                'px-3.5 py-2 text-caption font-semibold text-white',
+                'hover:bg-primary-dark',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+              )}
+            >
+              <Star className="size-4" strokeWidth={2} aria-hidden />
+              {t('orders_review_cta')}
+            </Link>
           ) : null}
         </div>
 
