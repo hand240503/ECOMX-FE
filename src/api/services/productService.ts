@@ -2,7 +2,7 @@ import axios from 'axios';
 import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type { ApiResponse, PaginationMetadata, ProductSearchMetadata } from '../types/common.types';
-import type { ProductDetailResponse, ProductFullResponse, ActivePromotionsResponse } from '../types/product.types';
+import type { BrandSummary, ProductDetailResponse, ProductFullResponse, ActivePromotionsResponse } from '../types/product.types';
 
 export interface ProductsByCategoryResult {
   products: ProductFullResponse[];
@@ -132,14 +132,17 @@ export const productService = {
    */
   async getByCategory(
     categoryId: number,
-    params: { page?: number; limit?: number; signal?: AbortSignal }
+    params: { page?: number; limit?: number; brandIds?: number[]; signal?: AbortSignal }
   ): Promise<ProductsByCategoryResult> {
+    const brands =
+      params.brandIds && params.brandIds.length > 0 ? params.brandIds.join(',') : undefined;
     const { data } = await axiosInstance.get<ApiResponse<ProductFullResponse[]>>(
       API_ENDPOINTS.PRODUCT.BY_CATEGORY(categoryId),
       {
         params: {
           page: params.page ?? 0,
           limit: params.limit ?? 20,
+          ...(brands ? { brands } : {}),
         },
         signal: params.signal,
       }
@@ -150,6 +153,20 @@ export const productService = {
       metadata: (data.metadata as PaginationMetadata | undefined) ?? null,
       message: typeof data.message === 'string' ? data.message : '',
     };
+  },
+
+  /**
+   * `GET /products/category/{id}/brands` — toàn bộ brand có SP trong category (cho sidebar filter).
+   */
+  async getCategoryBrands(
+    categoryId: number,
+    options?: { signal?: AbortSignal }
+  ): Promise<BrandSummary[]> {
+    const { data } = await axiosInstance.get<ApiResponse<BrandSummary[]>>(
+      API_ENDPOINTS.PRODUCT.BY_CATEGORY_BRANDS(categoryId),
+      { signal: options?.signal }
+    );
+    return Array.isArray(data.data) ? data.data : [];
   },
 
   /**

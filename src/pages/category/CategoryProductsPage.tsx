@@ -14,6 +14,7 @@ import {
   useProductListUrlState,
 } from '../../hooks/useProductListUrlState';
 import { useProductsByCategory } from '../../hooks/useProductsByCategory';
+import { useCategoryBrands } from '../../hooks/useCategoryBrands';
 import { useI18n } from '../../i18n/I18nProvider';
 import {
   findCategoryById,
@@ -27,10 +28,8 @@ import {
 } from '../../lib/categoryFilterBuckets';
 import {
   applyClientFilters,
-  enrichBrandOptionsWithCounts,
   sortProductsByMode,
   type ProductSortMode,
-  uniqueBrandsFromProducts,
   uniqueTagsFromProducts,
 } from '../../lib/categoryProductUtils';
 import { cn } from '../../lib/cn';
@@ -112,7 +111,8 @@ const CategoryProductsPage = () => {
 
   const { data: subcategories = [] } = useCategoryChildren(activeCategoryId);
 
-  const productsQuery = useProductsByCategory(activeCategoryId, apiPage);
+  const productsQuery = useProductsByCategory(activeCategoryId, apiPage, clientFilters.brandIds);
+  const categoryBrandsQuery = useCategoryBrands(activeCategoryId);
 
   const rawProducts = useMemo(
     () => productsQuery.data?.products ?? [],
@@ -146,16 +146,18 @@ const CategoryProductsPage = () => {
     [subcategories]
   );
 
-  /** Giống hot-sale/featured: một danh sách «Thương hiệu» phẳng; danh mục con vẫn ở hero. */
+  /**
+   * «Thương hiệu» phẳng lấy TOÀN BỘ brand của category (API /category/{id}/brands),
+   * không phụ thuộc trang sản phẩm hiện tại. Lọc brand thực hiện ở backend.
+   */
   const { brandGroups, flatBrandsNoSubs } = useMemo(() => {
-    const flat = sortBrandsByName(
-      uniqueBrandsFromProducts(rawProducts).map((b) => ({ id: b.id, name: b.name }))
-    );
+    const all = categoryBrandsQuery.data ?? [];
+    const flat = sortBrandsByName(all.map((b) => ({ id: b.id, name: b.name })));
     return {
       brandGroups: [] as SubcategoryBrandGroup[],
-      flatBrandsNoSubs: enrichBrandOptionsWithCounts(flat, rawProducts),
+      flatBrandsNoSubs: flat,
     };
-  }, [rawProducts]);
+  }, [categoryBrandsQuery.data]);
 
   const breadcrumbItems: BreadcrumbItem[] = useMemo(() => {
     if (!displayCategory) return [];

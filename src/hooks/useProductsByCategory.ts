@@ -19,16 +19,30 @@ function normalizePage(page: number): number {
  * Phạm vi subtree (id + descendant): `docs/product-by-category.md`.
  * `staleTime: 0` + `refetchOnMount: 'always'` để luôn thấy request sau khi đổi danh mục (tránh nhầm với cache global 5 phút).
  */
-export function useProductsByCategory(categoryId: number | undefined, page: number) {
+export function useProductsByCategory(
+  categoryId: number | undefined,
+  page: number,
+  brandIds: number[] = []
+) {
   const id = normalizeCategoryId(categoryId);
   const safePage = normalizePage(page);
+  const safeBrandIds = [...brandIds].filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  const brandKey = safeBrandIds.join(',');
 
   return useQuery({
-    queryKey: ['products', 'by-category', id, safePage, CATEGORY_PRODUCTS_PAGE_SIZE] as const,
+    queryKey: [
+      'products',
+      'by-category',
+      id,
+      safePage,
+      CATEGORY_PRODUCTS_PAGE_SIZE,
+      brandKey,
+    ] as const,
     queryFn: ({ signal }) =>
       productService.getByCategory(id!, {
         page: safePage,
         limit: CATEGORY_PRODUCTS_PAGE_SIZE,
+        brandIds: safeBrandIds,
         signal,
       }),
     enabled: id != null,

@@ -33,6 +33,8 @@ export const API_ENDPOINTS = {
      * JWT. Chi tiết: docs/product-by-category.md — bước 4 luồng: docs/home-category-product-list-flow.md
      */
     BY_CATEGORY: (categoryId: number | string) => `/products/category/${categoryId}`,
+    /** `GET /products/category/{id}/brands` — danh sách brand có SP trong category (cho sidebar filter). */
+    BY_CATEGORY_BRANDS: (categoryId: number | string) => `/products/category/${categoryId}/brands`,
     /**
      * `POST` body `{ productIds: number[] }` — tối đa 200 id; trả về `ProductFullResponse[]` theo thứ tự gửi.
      * @see docs/API_products_by_ids_FE.md
