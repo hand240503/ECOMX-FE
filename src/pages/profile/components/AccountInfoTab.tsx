@@ -10,7 +10,6 @@ import phoneIcon from '../../../assets/icon/phone.png';
 import emailIcon from '../../../assets/icon/email.png';
 import lockIcon from '../../../assets/icon/lock.png';
 import securityIcon from '../../../assets/icon/security.jpg';
-import trashIcon from '../../../assets/icon/trash.svg';
 import facebookIcon from '../../../assets/icon/facebook.png';
 import googleIcon from '../../../assets/icon/google.png';
 
@@ -528,11 +527,6 @@ const AccountInfoTab = () => {
             label={t('profile_label_forgot_password_link')}
             actionLabel={t('profile_btn_restore')}
             onAction={() => navigate('/forgot-password')}
-          />
-          <ContactBlockSimple
-            icon={trashIcon}
-            label={t('profile_label_delete_account')}
-            actionLabel={t('profile_btn_request')}
           />
         </ProfileCard>
 

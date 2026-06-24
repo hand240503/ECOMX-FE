@@ -37,6 +37,7 @@ import OrderReviewPage from '../../pages/orders/OrderReviewPage';
 import OrdersTab from '../../pages/orders/OrdersTab';
 import OrdersPage from '../../pages/orders/OrdersPage';
 import ReturnRequestPage from '../../pages/orders/ReturnRequestPage';
+import ReturnManagementTab from '../../pages/orders/ReturnManagementTab';
 import { useI18n } from '../../i18n/I18nProvider';
 
 /** Đường dẫn cũ /account/orders/:id → /orders/:id */
@@ -149,7 +150,7 @@ const router = createBrowserRouter(
         />
         <Route path="orders" element={<Navigate to="/orders" replace />} />
         <Route path="orders/:orderId" element={<LegacyAccountOrderRedirect />} />
-        <Route path="returns" element={<ReturnRequestPage />} />
+        <Route path="returns" element={<ReturnManagementTab />} />
         <Route path="returns/:orderId" element={<ReturnRequestPage />} />
         <Route path="address" element={<AddressBookTab />} />
         <Route path="address/new" element={<AddUserAddressTab />} />

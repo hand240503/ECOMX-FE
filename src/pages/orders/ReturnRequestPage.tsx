@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { differenceInDays, parseISO, isValid } from 'date-fns';
-import { ChevronLeft, ImagePlus, Video, X, FileVideo } from 'lucide-react';
+import { ChevronLeft, ImagePlus, Video, X, FileVideo, AlertCircle } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { orderService } from '../../api/services';
@@ -66,7 +66,7 @@ export default function ReturnRequestPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  function addFiles(incoming: FileList | null, kind: 'image' | 'video') {
+  function addFiles(incoming: FileList | null) {
     if (!incoming || incoming.length === 0) return;
     setMediaError('');
     const currentCount = mediaFiles.length;
@@ -145,6 +145,7 @@ export default function ReturnRequestPage() {
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!reason) next.reason = t('return_page_error_reason');
+    if (!description.trim()) next.description = t('return_page_error_desc');
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -152,10 +153,10 @@ export default function ReturnRequestPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    // TODO: khi backend hỗ trợ multipart, gửi mediaFiles[].file qua FormData
     submitMutation.mutate({
       reason: `${reason}${description ? ' — ' + description : ''}`,
       refundMethod: REFUND_METHOD_CASH,
+      files: mediaFiles.map((mf) => mf.file),
     });
   };
 
@@ -312,23 +313,30 @@ export default function ReturnRequestPage() {
           {/* Description */}
           <div className="mb-4">
             <label className="mb-1.5 block text-caption font-medium text-text-primary">
+              <span className="text-danger mr-0.5">*</span>
               {t('return_page_desc_label')}
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); setErrors((p) => ({ ...p, description: '' })); }}
               placeholder={t('return_page_desc_placeholder')}
               maxLength={2000}
               rows={4}
               className={cn(
-                'w-full resize-none rounded-sm border border-border bg-background px-3 py-2',
+                'w-full resize-none rounded-sm border bg-background px-3 py-2',
                 'text-body text-text-primary placeholder:text-text-disabled',
-                'focus:outline-none focus:ring-2 focus:ring-primary'
+                'focus:outline-none focus:ring-2 focus:ring-primary',
+                errors.description ? 'border-danger' : 'border-border'
               )}
             />
-            <p className="mt-1 m-0 text-right text-caption text-text-disabled">
-              {description.length}/2000
-            </p>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              {errors.description ? (
+                <p className="m-0 text-caption text-danger">{errors.description}</p>
+              ) : <span />}
+              <p className="m-0 text-right text-caption text-text-disabled">
+                {description.length}/2000
+              </p>
+            </div>
           </div>
 
           {/* ── Media upload ─────────────────────────────────────────────── */}
@@ -386,72 +394,79 @@ export default function ReturnRequestPage() {
               </div>
             )}
 
-            {/* Add buttons */}
-            <div className="flex gap-2">
-              {/* Image picker */}
-              <label
-                className={cn(
-                  'flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1',
-                  'rounded-sm border-2 border-dashed border-border bg-background',
-                  'text-caption text-text-secondary transition-colors',
-                  canAddMore
-                    ? 'hover:border-primary hover:text-primary'
-                    : 'cursor-not-allowed opacity-40'
+            {/* Add buttons — ẩn khi đã đạt tối đa số file */}
+            {canAddMore ? (
+              <div className="flex gap-2">
+                {/* Image picker */}
+                <label
+                  className={cn(
+                    'flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1',
+                    'rounded-sm border-2 border-dashed border-border bg-background',
+                    'text-caption text-text-secondary transition-colors',
+                    'hover:border-primary hover:text-primary'
+                  )}
+                  title="Thêm ảnh"
+                >
+                  <ImagePlus className="size-5" strokeWidth={1.5} aria-hidden />
+                  <span>{t('return_page_add_image')}</span>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => addFiles(e.target.files)}
+                  />
+                </label>
+
+                {/* Video picker */}
+                <label
+                  className={cn(
+                    'flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1',
+                    'rounded-sm border-2 border-dashed border-border bg-background',
+                    'text-caption text-text-secondary transition-colors',
+                    'hover:border-primary hover:text-primary'
+                  )}
+                  title="Thêm video"
+                >
+                  <Video className="size-5" strokeWidth={1.5} aria-hidden />
+                  <span>{t('return_page_add_video')}</span>
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => addFiles(e.target.files)}
+                  />
+                </label>
+
+                {/* Counter chip */}
+                {mediaFiles.length > 0 && (
+                  <div className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-sm border border-border bg-background text-caption text-text-secondary">
+                    <span className="text-lg font-semibold text-text-primary leading-none">
+                      {mediaFiles.length}/{MAX_FILES}
+                    </span>
+                    <span>file</span>
+                  </div>
                 )}
-                title={canAddMore ? 'Thêm ảnh' : `Đã đạt giới hạn ${MAX_FILES} file`}
-              >
-                <ImagePlus className="size-5" strokeWidth={1.5} aria-hidden />
-                <span>{t('return_page_add_image')}</span>
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  disabled={!canAddMore}
-                  className="sr-only"
-                  onChange={(e) => addFiles(e.target.files, 'image')}
-                />
-              </label>
+              </div>
+            ) : (
+              /* Đã đạt tối đa — hiện banner thay cho nút thêm */
+              <div className="flex items-center gap-2 rounded-sm border border-warning/50 bg-amber-50/80 px-3 py-2.5 dark:bg-amber-950/20">
+                <AlertCircle className="size-4 shrink-0 text-warning" strokeWidth={2} aria-hidden />
+                <p className="m-0 text-caption font-medium text-warning">
+                  Đã đạt tối đa {MAX_FILES} file ({mediaFiles.length}/{MAX_FILES}). Xoá bớt ảnh/video để thêm file khác.
+                </p>
+              </div>
+            )}
 
-              {/* Video picker */}
-              <label
-                className={cn(
-                  'flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1',
-                  'rounded-sm border-2 border-dashed border-border bg-background',
-                  'text-caption text-text-secondary transition-colors',
-                  canAddMore
-                    ? 'hover:border-primary hover:text-primary'
-                    : 'cursor-not-allowed opacity-40'
-                )}
-                title={canAddMore ? 'Thêm video' : `Đã đạt giới hạn ${MAX_FILES} file`}
-              >
-                <Video className="size-5" strokeWidth={1.5} aria-hidden />
-                <span>{t('return_page_add_video')}</span>
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/*"
-                  multiple
-                  disabled={!canAddMore}
-                  className="sr-only"
-                  onChange={(e) => addFiles(e.target.files, 'video')}
-                />
-              </label>
-
-              {/* Counter chip */}
-              {mediaFiles.length > 0 && (
-                <div className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-sm border border-border bg-background text-caption text-text-secondary">
-                  <span className="text-lg font-semibold text-text-primary leading-none">
-                    {mediaFiles.length}/{MAX_FILES}
-                  </span>
-                  <span>file</span>
-                </div>
-              )}
-            </div>
-
-            {/* Media error */}
+            {/* Media error (vượt số lượng / kích thước / sai định dạng) */}
             {mediaError && (
-              <p className="mt-2 text-caption text-danger">{mediaError}</p>
+              <div className="mt-2 flex items-start gap-2 rounded-sm border border-danger/40 bg-danger/5 px-3 py-2">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-danger" strokeWidth={2} aria-hidden />
+                <p className="m-0 text-caption text-danger">{mediaError}</p>
+              </div>
             )}
           </div>
         </section>

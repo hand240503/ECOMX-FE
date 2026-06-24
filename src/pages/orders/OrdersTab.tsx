@@ -31,7 +31,6 @@ const ORDER_TABS = [
   { id: 'awaiting_delivery' as const },
   { id: 'completed' as const },
   { id: 'cancelled' as const },
-  { id: 'return_refund' as const },
 ] as const;
 
 type OrderTabId = (typeof ORDER_TABS)[number]['id'];
@@ -70,7 +69,6 @@ function isVnpaySessionPending(s: string | undefined): boolean {
 function listQueryStatus(tab: OrderTabId): number | undefined {
   switch (tab) {
     case 'all':
-    case 'return_refund':
       return undefined;
     case 'pending_prep':
       return 1;
@@ -85,11 +83,6 @@ function listQueryStatus(tab: OrderTabId): number | undefined {
     default:
       return undefined;
   }
-}
-
-function filterOrdersForTab(orders: OrderDto[], tab: OrderTabId): OrderDto[] {
-  if (tab !== 'return_refund') return orders;
-  return orders.filter((o) => o.returnRefundStatus != null);
 }
 
 const userOrdersQueryKey = (tab: OrderTabId) => ['user-orders', tab] as const;
@@ -670,7 +663,7 @@ export default function OrdersTab() {
     staleTime: 60_000,
   });
 
-  const orders = useMemo(() => filterOrdersForTab(query.data ?? [], tab), [query.data, tab]);
+  const orders = useMemo(() => query.data ?? [], [query.data]);
 
   const orderIdsNeedingLines = useMemo(
     () => orders.filter((o) => !orderHasLines(o)).map((o) => o.id),

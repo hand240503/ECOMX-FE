@@ -340,12 +340,24 @@ export const orderService = {
       bankAccountNumber?: string;
       bankName?: string;
       bankEmail?: string;
+      /** Ảnh / video bằng chứng đính kèm (tuỳ chọn). */
+      files?: File[];
     }
   ): Promise<OrderDto> {
     try {
+      // Endpoint nhận multipart/form-data để kèm ảnh / video.
+      const form = new FormData();
+      if (body?.reason) form.append('reason', body.reason);
+      if (body?.refundMethod) form.append('refundMethod', body.refundMethod);
+      if (body?.bankAccountNumber) form.append('bankAccountNumber', body.bankAccountNumber);
+      if (body?.bankName) form.append('bankName', body.bankName);
+      if (body?.bankEmail) form.append('bankEmail', body.bankEmail);
+      (body?.files ?? []).forEach((file) => form.append('files', file));
+
       const { data } = await axiosInstance.post<ApiResponse<OrderDto>>(
         API_ENDPOINTS.ORDER.RETURN_REQUEST(id),
-        body ?? {}
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       if (!data.success || data.data === undefined) {
         throw new Error(data.message || 'Không gửi được yêu cầu trả hàng');
