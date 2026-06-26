@@ -69,6 +69,8 @@ export interface CreateAddressRequest {
   country: string;
   zipCode?: string | null;
   isDefault?: boolean;
+  /** Kho (store) User đang chọn — BE tính phí ship từ kho này. Null = kho mặc định. */
+  storeId?: number;
 }
 
 /** `PUT /users/addresses/{id}` — partial — docs/API_user_address.md */
@@ -79,6 +81,8 @@ export interface UpdateAddressRequest {
   country?: string;
   zipCode?: string | null;
   isDefault?: boolean;
+  /** Kho (store) User đang chọn — BE tính lại phí ship từ kho này. */
+  storeId?: number;
 }
 
 export interface UserInfo {

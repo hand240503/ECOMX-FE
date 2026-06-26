@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, SlidersHorizontal, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Loader2, SlidersHorizontal, MoreHorizontal, MapPin, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { mapProductFullToCard } from '../../api/mappers/homeProductMapper';
 import { productService } from '../../api/services/productService';
+import { storeService } from '../../api/services/storeService';
+import { getSelectedStoreId, setSelectedStoreId } from '../../lib/selectedStore';
+import StoreSelectorPopup from './StoreSelectorPopup';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { Lang } from '../../utils/i18n';
@@ -48,6 +51,35 @@ const MainHeader = () => {
 
   const { isTopLoadingBarVisible, navigateWithLoading, startRouteTransition } = useRouteLoadingNavigation();
   const location = useLocation();
+
+  // Danh sách cửa hàng đang hoạt động — cho khách chọn ở thanh điều hướng.
+  const storesQuery = useQuery({
+    queryKey: ['header', 'active-stores'],
+    queryFn: ({ signal }) => storeService.listActive({ signal }),
+    staleTime: 5 * 60_000,
+  });
+  const stores = storesQuery.data ?? [];
+  const [selectedStoreId, setSelectedStoreIdState] = useState<number | null>(() => getSelectedStoreId());
+
+  // Mặc định chọn kho mặc định khi chưa chọn / kho đã chọn không còn hợp lệ.
+  useEffect(() => {
+    if (stores.length === 0) return;
+    const stored = getSelectedStoreId();
+    const valid = stored != null && stores.some((s) => s.id === stored);
+    const nextId = valid ? (stored as number) : (stores.find((s) => s.isDefault) ?? stores[0]).id;
+    setSelectedStoreIdState(nextId);
+    if (!valid) setSelectedStoreId(nextId); // lưu để checkout / trang địa chỉ dùng cùng kho
+  }, [stores]);
+
+  const [storePopupOpen, setStorePopupOpen] = useState(false);
+  const selectedStore = stores.find((s) => s.id === selectedStoreId) ?? null;
+  const selectedStoreLocation = selectedStore
+    ? [selectedStore.addressLine, selectedStore.city].filter((x) => x && x.trim()).join(', ')
+    : '';
+  const onChangeStore = (id: number) => {
+    setSelectedStoreIdState(id);
+    setSelectedStoreId(id);
+  };
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery, HEADER_SEARCH_SUGGEST_DEBOUNCE_MS);
   const debouncedTrim = debouncedSearchQuery.trim();
@@ -411,15 +443,19 @@ const MainHeader = () => {
             })}
           </nav>
 
-          {/* Xem tất cả danh mục */}
-          <button
-            type="button"
-            onClick={() => navigateWithLoading('/products')}
-            className="ml-auto flex flex-shrink-0 items-center gap-1 whitespace-nowrap py-2.5 pl-3 text-[13px] font-medium text-danger outline-none focus:outline-none hover:text-danger/80 transition-colors"
-          >
-            Xem tất cả danh mục
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
+          {/* Chọn cửa hàng (kho) — mở popup */}
+          {selectedStore && (
+            <button
+              type="button"
+              onClick={() => setStorePopupOpen(true)}
+              title={`${selectedStore.name}${selectedStoreLocation ? ' — ' + selectedStoreLocation : ''}`}
+              className="ml-auto flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap py-2.5 pl-3 text-[13px] font-medium text-danger outline-none transition-colors hover:text-danger/80 focus:outline-none"
+            >
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="max-w-[220px] truncate">{selectedStore.name}</span>
+              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -438,6 +474,14 @@ const MainHeader = () => {
           onClick={() => setIsSearchOpen(false)}
         />
       )}
+
+      {/* Popup chọn cửa hàng */}
+      <StoreSelectorPopup
+        open={storePopupOpen}
+        onClose={() => setStorePopupOpen(false)}
+        selectedStoreId={selectedStoreId}
+        onSelect={onChangeStore}
+      />
     </header>
   );
 };

@@ -131,6 +131,17 @@ export const API_ENDPOINTS = {
   /** @see docs/API_SHIPPING_AND_ORDERS_UPDATE.md §1 */
   SHIPPING: {
     DISTANCE_TO_WAREHOUSE: '/shipping/distance-to-warehouse',
+    /** Danh sách kho + phí ship tới một địa chỉ (khách chọn store). */
+    STORES: '/shipping/stores',
+    DISTANCE_TO_STORE: '/shipping/distance-to-store',
+  },
+
+  /** Kho công khai — liệt kê store đang hoạt động. */
+  STORES: {
+    LIST: '/stores',
+    /** Kho có đủ tồn cho các sản phẩm (variantIds/productIds). */
+    STOCKING: '/stores/stocking',
+    BY_ID: (id: number | string) => `/stores/${id}`,
   },
 
   /** @see docs/COLLECTOR_LOG_API.md */

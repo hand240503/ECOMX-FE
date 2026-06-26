@@ -1,5 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { authService } from '../../../api/services';
+import { storeService } from '../../../api/services/storeService';
+import { getSelectedStoreId } from '../../../lib/selectedStore';
 import LoadingLink from '../../../components/LoadingLink';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { useCreateUserAddress } from '../../../hooks/useUserAddresses';
@@ -14,8 +17,15 @@ export default function AddUserAddressTab() {
   const createMutation = useCreateUserAddress();
   const saving = createMutation.isPending;
 
+  // Kho User đang chọn (mặc định) — phí ship của địa chỉ tính theo kho này.
+  const defaultStoreQuery = useQuery({
+    queryKey: ['default-store'],
+    queryFn: ({ signal }) => storeService.getDefault({ signal }),
+    staleTime: 5 * 60_000,
+  });
+
   const onSubmit = async (v: UserAddressFormValues) => {
-    const payload = formValuesToCreatePayload(v);
+    const payload = { ...formValuesToCreatePayload(v), storeId: getSelectedStoreId() ?? defaultStoreQuery.data?.id };
     try {
       await createMutation.mutateAsync(payload);
       await authService.fetchCurrentUser();

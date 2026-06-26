@@ -12,3 +12,19 @@ export type ShippingDistanceResponse = {
   /** Phí ship (VND) — có thể `null` nếu BE không tính được. */
   shippingFeeVnd: number | null;
 };
+
+/** `GET /shipping/stores?address=` — một lựa chọn kho kèm phí ship tới địa chỉ. */
+export type ShippingStoreOption = {
+  storeId: number;
+  code: string;
+  name: string;
+  addressLine: string | null;
+  city: string | null;
+  storeLatitude: number | null;
+  storeLongitude: number | null;
+  routable: boolean;
+  distanceMeters: number | null;
+  distanceKilometers: number | null;
+  durationSeconds: number | null;
+  shippingFeeVnd: number | null;
+};

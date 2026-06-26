@@ -27,8 +27,9 @@ import { formatPrice } from '../lib/formatPrice';
 import { stringifyOrderDescription } from '../lib/orderDescriptionJson';
 import { isCodPaymentMethod } from '../lib/paymentMethodUtils';
 import { getAddressShippingSnapshot } from '../lib/userAddressShipping';
+import { getSelectedStoreId, SELECTED_STORE_EVENT } from '../lib/selectedStore';
 import { cn } from '../lib/cn';
-import type { ShippingDistanceResponse } from '../api/types/shipping.types';
+import type { ShippingDistanceResponse, ShippingStoreOption } from '../api/types/shipping.types';
 import MainFooter from '../layout/footer/MainFooter';
 import MainHeader from '../layout/header/MainHeader';
 import { userAddressesQueryKey } from '../hooks/useUserAddresses';
@@ -217,6 +218,29 @@ export default function CheckoutPage() {
     staleTime: 60_000,
   });
 
+  // Danh sách kho (store) + phí ship tới địa chỉ giao — khách chọn store để tính phí & trừ tồn.
+  const storeOptionsQuery = useQuery({
+    queryKey: ['checkout', 'store-options', addressLineForShipping] as const,
+    queryFn: ({ signal }): Promise<ShippingStoreOption[]> =>
+      shippingService.getStoreOptions(addressLineForShipping, { signal }),
+    enabled: addressLineForShipping.trim().length > 0,
+    staleTime: 60_000,
+  });
+  const storeOptions = useMemo(() => storeOptionsQuery.data ?? [], [storeOptionsQuery.data]);
+
+  // Kho do khách chọn ở thanh điều hướng (header). Checkout chỉ ĐỌC, không tự đổi kho.
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(() => getSelectedStoreId());
+  useEffect(() => {
+    const sync = () => setSelectedStoreId(getSelectedStoreId());
+    window.addEventListener(SELECTED_STORE_EVENT, sync);
+    return () => window.removeEventListener(SELECTED_STORE_EVENT, sync);
+  }, []);
+
+  const selectedStoreOption = useMemo(
+    () => storeOptions.find((s) => s.storeId === selectedStoreId) ?? null,
+    [storeOptions, selectedStoreId]
+  );
+
   useEffect(() => {
     const list = paymentMethodOptions;
     if (!list.length || paymentMethodId != null) return;
@@ -310,7 +334,8 @@ export default function CheckoutPage() {
   const itemsMerchandise =
     previewSnapshot?.itemsSubtotal != null ? previewSnapshot.itemsSubtotal : null;
   const voucherDiscount = 0;
-  const shippingFeeVnd = shippingQuoteQuery.data?.shippingFeeVnd;
+  // Phí ship: ưu tiên kho khách chọn; fallback về phí kho mặc định.
+  const shippingFeeVnd = selectedStoreOption?.shippingFeeVnd ?? shippingQuoteQuery.data?.shippingFeeVnd;
   const grandTotalForSummary =
     itemsMerchandise != null ? itemsMerchandise + (shippingFeeVnd ?? 0) - voucherDiscount : null;
 
@@ -342,8 +367,16 @@ export default function CheckoutPage() {
         paymentMethodId,
         userAddressId: selectedAddress.id,
       };
+      // Kho khách chọn — BE trừ tồn & tính phí ship từ kho này.
+      if (selectedStoreId != null) {
+        orderBody.storeId = selectedStoreId;
+      }
+      // Khoảng cách: ưu tiên store→địa chỉ; fallback khoảng cách kho mặc định.
+      const storeDist = selectedStoreOption?.distanceMeters;
       const q = shippingQuoteQuery.data;
-      if (q != null && Number.isFinite(q.distanceMeters) && q.distanceMeters >= 0) {
+      if (storeDist != null && Number.isFinite(storeDist) && storeDist >= 0) {
+        orderBody.deliveryDistanceMeters = Math.round(storeDist);
+      } else if (q != null && Number.isFinite(q.distanceMeters) && q.distanceMeters >= 0) {
         orderBody.deliveryDistanceMeters = Math.round(q.distanceMeters);
       }
       // Dùng lại orderDetailsPayload (đã bao gồm companion PwP được accept)
@@ -850,6 +883,23 @@ export default function CheckoutPage() {
                   className="mt-1.5 h-10 w-full rounded-sm border border-border bg-surface px-3 text-body text-text-primary placeholder:text-text-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
                 />
               </div>
+
+              {/* Cửa hàng lấy hàng — chọn/đổi ở thanh điều hướng phía trên */}
+              {defaultDeliveryAddress && selectedStoreOption && (
+                <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 tablet:px-5">
+                  <div className="min-w-0">
+                    <p className="m-0 text-body font-medium text-text-primary">Cửa hàng lấy hàng</p>
+                    <p className="m-0 truncate text-caption text-text-secondary">
+                      {selectedStoreOption.name}
+                      {selectedStoreOption.distanceKilometers != null ? ` · ${selectedStoreOption.distanceKilometers} km` : ''}
+                      {' · đổi cửa hàng ở thanh trên cùng'}
+                    </p>
+                  </div>
+                  <p className="m-0 flex-shrink-0 text-body font-medium text-text-primary">
+                    {selectedStoreOption.shippingFeeVnd != null ? formatPrice(selectedStoreOption.shippingFeeVnd) : '—'}
+                  </p>
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 border-t border-border bg-background/40 px-4 py-3 tablet:flex-row tablet:items-center tablet:justify-between tablet:px-5">
                 <div>

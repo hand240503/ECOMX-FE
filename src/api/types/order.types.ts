@@ -34,6 +34,8 @@ export type CreateOrderRequestBody = {
     userAddressId?: number;
     /** Mét; có thể gửi kèm `userAddressId` làm fallback hoặc bắt buộc nếu không có id. */
     deliveryDistanceMeters?: number;
+    /** Kho (store) khách chọn — BE trừ tồn & tính ship từ kho này. Bỏ trống = kho mặc định. */
+    storeId?: number;
   };
   orderDetails: Array<{
     /** Legacy — khi không có `productVariantId` BE chọn biến thể mặc định. */

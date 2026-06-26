@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { authService } from '../../../api/services';
+import { storeService } from '../../../api/services/storeService';
+import { getSelectedStoreId } from '../../../lib/selectedStore';
 import { Button } from '../../../components/ui';
 import LoadingLink from '../../../components/LoadingLink';
 import { useUpdateUserAddress, useUserAddressById } from '../../../hooks/useUserAddresses';
@@ -18,6 +21,12 @@ export default function EditUserAddressTab() {
   const valid = Number.isFinite(id) && id > 0;
   const addressQuery = useUserAddressById(valid ? id : null);
   const updateMutation = useUpdateUserAddress();
+  // Kho User đang chọn (mặc định) — tính lại phí ship theo kho này khi cập nhật địa chỉ.
+  const defaultStoreQuery = useQuery({
+    queryKey: ['default-store'],
+    queryFn: ({ signal }) => storeService.getDefault({ signal }),
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     if (addressId != null && addressId !== '' && !valid) {
@@ -31,7 +40,7 @@ export default function EditUserAddressTab() {
   }
 
   const onSubmit = async (v: UserAddressFormValues) => {
-    const payload = formValuesToUpdatePayload(v);
+    const payload = { ...formValuesToUpdatePayload(v), storeId: getSelectedStoreId() ?? defaultStoreQuery.data?.id };
     try {
       await updateMutation.mutateAsync({ id, payload });
       await authService.fetchCurrentUser();

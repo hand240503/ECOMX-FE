@@ -2,7 +2,7 @@ import axios from 'axios';
 import { axiosInstance } from '../config/axiosConfig';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 import type { ApiResponse } from '../types/common.types';
-import type { ShippingDistanceResponse } from '../types/shipping.types';
+import type { ShippingDistanceResponse, ShippingStoreOption } from '../types/shipping.types';
 
 const parseApiErrorMessage = (error: unknown, fallback: string): string => {
   if (axios.isAxiosError(error)) {
@@ -73,6 +73,32 @@ export const shippingService = {
       return normalizeShippingData(data.data);
     } catch (error) {
       throw new Error(parseApiErrorMessage(error, 'Không ước tính được phí vận chuyển'));
+    }
+  },
+
+  /**
+   * `GET /shipping/stores?address=...`
+   * Danh sách kho đang hoạt động kèm khoảng cách & phí ship tới địa chỉ giao.
+   */
+  async getStoreOptions(
+    address: string,
+    options?: { signal?: AbortSignal }
+  ): Promise<ShippingStoreOption[]> {
+    const trimmed = address.trim().slice(0, 500);
+    if (!trimmed) {
+      throw new Error('Thiếu địa chỉ để ước tính phí ship theo kho');
+    }
+    try {
+      const { data } = await axiosInstance.get<ApiResponse<ShippingStoreOption[]>>(
+        API_ENDPOINTS.SHIPPING.STORES,
+        { params: { address: trimmed }, signal: options?.signal }
+      );
+      if (!data.success || !Array.isArray(data.data)) {
+        throw new Error(data.message || 'Không tải được danh sách kho');
+      }
+      return data.data;
+    } catch (error) {
+      throw new Error(parseApiErrorMessage(error, 'Không tải được danh sách kho'));
     }
   },
 };
