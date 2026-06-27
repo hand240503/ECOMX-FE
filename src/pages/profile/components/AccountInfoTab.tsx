@@ -10,8 +10,6 @@ import phoneIcon from '../../../assets/icon/phone.png';
 import emailIcon from '../../../assets/icon/email.png';
 import lockIcon from '../../../assets/icon/lock.png';
 import securityIcon from '../../../assets/icon/security.jpg';
-import facebookIcon from '../../../assets/icon/facebook.png';
-import googleIcon from '../../../assets/icon/google.png';
 
 const inputBase = cn(
   'h-10 w-full min-w-0 rounded-sm border border-border bg-surface px-3 text-body text-text-primary',
@@ -528,12 +526,6 @@ const AccountInfoTab = () => {
             actionLabel={t('profile_btn_restore')}
             onAction={() => navigate('/forgot-password')}
           />
-        </ProfileCard>
-
-        <ProfileCard>
-          <h3 className="mb-3 mt-0 text-title text-text-secondary">{t('profile_section_social')}</h3>
-          <ContactBlockSimple icon={facebookIcon} label={t('profile_link_facebook')} actionLabel={t('profile_link_connect')} />
-          <ContactBlockSimple icon={googleIcon} label={t('profile_link_google')} actionLabel={t('profile_link_connect')} />
         </ProfileCard>
       </section>
     </div>
